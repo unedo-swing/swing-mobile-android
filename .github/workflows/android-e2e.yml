@@ -164,8 +164,7 @@ jobs:
             adb install -r -g apps/app.apk
             appium --base-path / --log-level error --log appium.log &
             bash .github/scripts/wait_for_appium.sh
-            pytest -m "${{ steps.scope.outputs.marker }}" \
-              --junitxml=reports/junit.xml
+            pytest -m "${{ steps.scope.outputs.marker }}" --junitxml=reports/junit.xml
 
       - name: Upload evidence
         if: always()
