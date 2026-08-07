@@ -35,7 +35,9 @@ REQUIRED_ABI = "lib/x86_64/"
 
 
 def die(message: str) -> None:
-    print(f"::error::{message}", file=sys.stderr)
+    # Workflow commands must go to stdout — an ::error:: on stderr is not parsed
+    # into an annotation, and the run just shows a bare "exit code 1".
+    print(f"::error::{message}")
     sys.exit(1)
 
 
@@ -52,8 +54,19 @@ def access_token() -> str:
         info = json.loads(raw)
     except json.JSONDecodeError:
         die("FIREBASE_SA_KEY is not valid JSON — paste the whole key file.")
-    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-    creds.refresh(Request())
+    for field in ("client_email", "private_key", "token_uri"):
+        if field not in info:
+            die(
+                f"FIREBASE_SA_KEY is missing '{field}'. That looks like an OAuth "
+                "client file, not a service-account key — re-download it from "
+                "IAM > Service Accounts > Keys > Add key > JSON."
+            )
+    print(f"Authenticating as {info['client_email']}")
+    try:
+        creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        creds.refresh(Request())
+    except Exception as exc:  # noqa: BLE001 - surface the reason, not a traceback
+        die(f"Could not get an access token for {info['client_email']}: {exc}")
     return creds.token
 
 
@@ -69,12 +82,19 @@ def latest_release(token: str) -> dict:
     )
     if resp.status_code == 403:
         die(
-            "Firebase denied the request (403). The service account needs the "
-            "Firebase App Distribution Viewer role on this project."
+            "Firebase denied the request (403). Either the service account lacks "
+            "the Firebase App Distribution Viewer role on project "
+            f"{project}, or the Firebase App Distribution API is not enabled. "
+            f"Response: {resp.text[:400]}"
         )
     if resp.status_code == 404:
-        die(f"No such app: {app_id} in project {project}. Check the app id.")
-    resp.raise_for_status()
+        die(
+            f"No such app: {app_id} in project {project}. Check that the app id "
+            f"and project number come from the same Firebase project. "
+            f"Response: {resp.text[:400]}"
+        )
+    if not resp.ok:
+        die(f"App Distribution returned {resp.status_code}: {resp.text[:400]}")
 
     releases = resp.json().get("releases") or []
     if not releases:
