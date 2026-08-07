@@ -13,7 +13,7 @@ on:
       suite:
         description: Which tests to run
         type: choice
-        options: [smoke, regression]
+        options: [regression]
         default: regression
 
 concurrency:
@@ -76,13 +76,13 @@ jobs:
             schedule)
               marker="not manual"; pdf=1 ;;
             workflow_dispatch)
-              if [ "${{ inputs.suite }}" = "smoke" ]; then
-                marker="smoke and not manual"; pdf=0
+              if [ "${{ inputs.suite }}" = "regression" ]; then
+                marker="regression and not manual"; pdf=0
               else
                 marker="not manual"; pdf=1
               fi ;;
             *)
-              marker="smoke and not manual"; pdf=0 ;;
+              marker="regression and not manual"; pdf=0 ;;
           esac
           echo "marker=$marker" >> "$GITHUB_OUTPUT"
           echo "pdf=$pdf" >> "$GITHUB_OUTPUT"
