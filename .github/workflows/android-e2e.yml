@@ -101,9 +101,14 @@ jobs:
           node-version: '20'
 
       - name: Install Appium and the UiAutomator2 driver
+        # Pinned to the versions the suite is developed against locally. The
+        # driver and server majors move together — uiautomator2 6.x requires
+        # Appium 3.x — so bump these two as a pair, never individually.
         run: |
-          npm install -g appium@2
-          appium driver install uiautomator2
+          npm install -g appium@3.1.0
+          appium driver install uiautomator2@6.1.0
+          appium -v
+          appium driver list --installed
 
       - name: Enable KVM
         run: |
