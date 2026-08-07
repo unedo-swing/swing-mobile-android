@@ -1,0 +1,6 @@
+Appium-Python-Client>=4.0.0
+selenium>=4.20.0
+pytest>=8.0.0
+reportlab>=4.1.0
+python-dotenv>=1.0.1
+openpyxl>=3.1.0

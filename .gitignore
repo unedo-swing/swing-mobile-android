@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+my-env/
+.DS_Store
+reports/
+!reports/.gitkeep
+*.apk

@@ -1,0 +1,212 @@
+name: Android E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # GitHub cron is UTC. 21:17 UTC = 04:17 WIB (UTC+7) — the morning run.
+    # An off-the-hour minute avoids the congested top-of-hour scheduling slot.
+    - cron: '17 21 * * *'
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Which tests to run
+        type: choice
+        options: [smoke, regression]
+        default: regression
+
+concurrency:
+  group: android-e2e-${{ github.ref }}
+  # Superseded PR runs are worth cancelling; a nightly regression never is.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHON_VERSION: '3.11'
+  ANDROID_API_LEVEL: '34'
+
+jobs:
+  fetch-apk:
+    name: Fetch APK from Firebase
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.firebase.outputs.version }}
+      build: ${{ steps.firebase.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install fetch dependencies
+        run: pip install google-auth requests
+
+      - name: Download latest App Distribution release
+        id: firebase
+        env:
+          FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+          FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
+          FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+        run: python .github/scripts/fetch_firebase_apk.py apps/app.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swing-apk
+          path: apps/app.apk
+          retention-days: 5
+
+  android-tests:
+    name: Appium tests on emulator
+    needs: fetch-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: swing-apk
+          path: apps
+
+      - name: Resolve test scope
+        id: scope
+        run: |
+          case "${{ github.event_name }}" in
+            schedule)
+              marker="not manual"; pdf=1 ;;
+            workflow_dispatch)
+              if [ "${{ inputs.suite }}" = "smoke" ]; then
+                marker="smoke and not manual"; pdf=0
+              else
+                marker="not manual"; pdf=1
+              fi ;;
+            *)
+              marker="smoke and not manual"; pdf=0 ;;
+          esac
+          echo "marker=$marker" >> "$GITHUB_OUTPUT"
+          echo "pdf=$pdf" >> "$GITHUB_OUTPUT"
+          echo "Running: -m \"$marker\" (PDF evidence=$pdf)"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Appium and the UiAutomator2 driver
+        run: |
+          npm install -g appium@2
+          appium driver install uiautomator2
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Cache AVD snapshot
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.ANDROID_API_LEVEL }}
+
+      - name: Create AVD and generate a snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD snapshot generated"
+
+      - name: Run Appium tests
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          APPIUM_SERVER_URL: http://127.0.0.1:4723
+          DEVICE_NAME: emulator-5554
+          APP: apps/app.apk
+          APP_PACKAGE: app.getswing.dev
+          APP_ACTIVITY: app.getswing.MainActivity
+          NO_RESET: 'true'
+          FULL_RESET: 'false'
+          PDF_EVIDENCE: ${{ steps.scope.outputs.pdf }}
+          TEST_DATA_MOBILE: data/test_data_swing_mobile.xlsx
+          DRIVING_RANGE_SHEET: DrivingRange
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb devices
+            adb install -r -g apps/app.apk
+            appium --base-path / --log-level error --log appium.log &
+            bash .github/scripts/wait_for_appium.sh
+            pytest -m "${{ steps.scope.outputs.marker }}" \
+              --junitxml=reports/junit.xml
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ needs.fetch-apk.outputs.build }}-${{ github.run_number }}
+          path: |
+            reports/**/*.pdf
+            reports/regression_summary.txt
+            reports/junit.xml
+            appium.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Publish results to the run summary
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: reports/junit.xml
+          check_name: Android E2E results
+          fail_on_failure: false
+
+  notify:
+    name: Report nightly failure
+    needs: [fetch-apk, android-tests]
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      # Nobody is watching a 04:00 run, so a red X would otherwise sit unnoticed
+      # until someone happens to open the repo.
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Nightly Android E2E failed — build ${{ needs.fetch-apk.outputs.build || 'unknown' }}`,
+              body: [
+                `The scheduled regression run failed.`,
+                ``,
+                `App version: ${{ needs.fetch-apk.outputs.version || 'unknown' }} (${{ needs.fetch-apk.outputs.build || 'unknown' }})`,
+                `Run: ${run}`,
+                ``,
+                `Download the \`evidence-*\` artifact for the per-test PDFs and regression_summary.txt.`,
+              ].join('\n'),
+              labels: ['nightly-failure'],
+            });
