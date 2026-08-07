@@ -149,8 +149,9 @@ jobs:
           NO_RESET: 'true'
           FULL_RESET: 'false'
           PDF_EVIDENCE: ${{ steps.scope.outputs.pdf }}
-          TEST_DATA_MOBILE: data/test_data_swing_mobile.xlsx
-          DRIVING_RANGE_SHEET: DrivingRange
+          # Workbook path and sheet names are deliberately NOT set here — the
+          # defaults in data/*.py already match the committed workbook, and
+          # duplicating them in CI is how they drift out of sync.
         with:
           api-level: ${{ env.ANDROID_API_LEVEL }}
           arch: x86_64

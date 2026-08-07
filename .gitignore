@@ -4,6 +4,7 @@ __pycache__/
 .env
 my-env/
 .DS_Store
+.~lock.*#
 reports/
 !reports/.gitkeep
 *.apk
