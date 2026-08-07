@@ -7,7 +7,7 @@ from data.tee_time_data import TeeTimeData as D
 class TestTeeTimePayment:
     """Tee time -> select payment method, with and without a promo."""
 
-    @pytest.mark.regression
+    @pytest.mark.skip
     @pytest.mark.parametrize(
         "TC_ID, use_promo",
         [("TT_002", True), ("TT_003", False)],

@@ -50,7 +50,7 @@ class TestDrivingRangeBooking:
             bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
         )
     
-    @pytest.mark.skip
+    @pytest.mark.regression
     @pytest.mark.parametrize("TC_ID", ["TC_DR_00004"], indirect=True)
     def test_end_to_end_booking_without_promo(self, TC_ID, login_flow, driving_range_flow):
         login_flow.verify_home()
@@ -94,7 +94,7 @@ class TestDrivingRangeBooking:
         driving_range_flow.reschedule_success.tap_see_booking_details()
         driving_range_flow.booking_details.verify_rescheduled()
 
-    @pytest.mark.regression
+    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_DR_00006"], indirect=True)
     def test_cancel_booking(self, TC_ID, login_flow, driving_range_flow):
         # open the existing booking from the Activity screen

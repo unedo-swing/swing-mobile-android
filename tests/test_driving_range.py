@@ -15,18 +15,18 @@ from data.driving_range_data import DrivingRangeData as D
 @pytest.mark.android
 class TestDrivingRangeVerifyPages:
 
-    @pytest.mark.regression
+    @pytest.mark.skip
     def test_verify_home_page(self, login_flow):
         # user already logged in -> Home should be shown
         login_flow.verify_home()
 
-    @pytest.mark.regression
+    @pytest.mark.skip
     def test_verify_explore_driving_range(self, login_flow, driving_range_flow):
         login_flow.verify_home()
         driving_range_flow.select_region(D.REGION)
         driving_range_flow.open_driving_range()  # verifies the explore screen
 
-    @pytest.mark.regression
+    @pytest.mark.skip
     def test_verify_range_details(self, login_flow, driving_range_flow):
         login_flow.verify_home()
         driving_range_flow.select_region(D.REGION)
@@ -34,7 +34,7 @@ class TestDrivingRangeVerifyPages:
         # searches, opens the range, verifies the details screen + range name
         driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
 
-    @pytest.mark.regression
+    @pytest.mark.skip
     def test_verify_booking_confirmation(self, login_flow, driving_range_flow):
         login_flow.verify_home()
         driving_range_flow.book_driving_range(

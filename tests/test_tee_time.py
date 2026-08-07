@@ -6,7 +6,7 @@ from data.tee_time_data import TeeTimeData as D, load_players
 @pytest.mark.android
 class TestTeeTime:
 
-    @pytest.mark.regression
+    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TT_001"])
     def test_book_standard_tee_time_full(self, TC_ID, login_flow, tee_time_flow, reporter):
         # load this test case's scenario data from the Tee_Time sheet

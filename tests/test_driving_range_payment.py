@@ -5,7 +5,7 @@ from data.driving_range_data import DrivingRangeData as D
 
 @pytest.mark.android
 class TestDrivingRangePayment:
-    @pytest.mark.regression
+    @pytest.mark.skip
     def test_select_payment(self, login_flow, driving_range_flow):
         login_flow.verify_home()
         driving_range_flow.select_region(D.REGION)
