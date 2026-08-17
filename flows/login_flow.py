@@ -41,8 +41,8 @@ class LoginFlow(BaseFlow):
         self.login.tap_continue()
     
     def input_otp(self):
-        otp = input("Input Your OTP : ")
-        self.login.enter_code(otp)
+        # otp = input("Input Your OTP : ")
+        self.login.enter_code("000000")
 
     def verify_login_success(self):
         self.notif.verify_screen()

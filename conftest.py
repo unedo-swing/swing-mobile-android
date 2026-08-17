@@ -20,8 +20,10 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 import pytest
+import re
 
 from config import settings
+import config as config_module
 from core.driver_factory import create_driver
 from data.driving_range_data import DrivingRangeData
 from flows.login_flow import LoginFlow
@@ -164,10 +166,54 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     """After the whole run, print (and save) a regression summary: each failed
     test with its last step and last screenshot."""
     failures = getattr(config, "_regression_failures", [])
+    tr = terminalreporter
+
+    if os.getenv("CLICKUP_SYNC") == "1":
+        try:
+            from utils.clickup_sync import sync_results
+            from config.clickup_map import TC_TO_TASK
+
+            pdf_lines = getattr(config_module, "_clickup_pdf_paths", [])
+
+            results = []
+            for st in ("passed", "failed", "error"):
+                for rep in terminalreporter.stats.get(st, []):
+                    tc = _tc_from_nodeid(rep.nodeid)
+                    err = ""
+                    if st in ("failed", "error") and getattr(rep, "longrepr", None):
+                        crash = getattr(rep.longrepr, "reprcrash", None)
+                        err = (crash.message if crash else str(rep.longrepr) or "").strip().splitlines()[0]
+                    pdf = ""
+
+                    slug = tc
+                    if "::" in rep.nodeid:
+                        slug = rep.nodeid.split("::")[-1]
+                    slug = slug.split("[")[0]
+                    if slug.startswith("test_"):
+                        slug = slug[5:]
+
+                    for p in pdf_lines:
+                        if slug and slug in os.path.basename(p):
+                            pdf = p
+                            break
+
+                    if not pdf and pdf_lines:
+                        pdf = max(pdf_lines, key=lambda x: os.path.getmtime(x))
+                    results.append({
+                        "tc_id": tc,
+                        "nodeid": rep.nodeid,
+                        "status": "PASS" if st == "passed" else "FAIL",
+                        "error": err,
+                        "pdf": pdf,
+                    })
+            sync_results(results, TC_TO_TASK)
+            tr.write_line("[clickup] done sync")
+        except Exception as e:
+            tr.write_line(f"[clickup] failed to sync (skipped)): {e}")
+
     if not failures:
         return
 
-    tr = terminalreporter
     tr.write_sep("=", f"REGRESSION SUMMARY — {len(failures)} FAILED", red=True, bold=True)
     for f in failures:
         tr.write_line(f"FAIL  {f['test']}  (in {f['phase']})", red=True, bold=True)
@@ -212,3 +258,9 @@ def _write_regression_summary(failures) -> str:
         fh.write("\n".join(lines) + "\n")
     return path
 
+def _tc_from_nodeid(nid):
+    m = re.search(r"\[([^\]]+)\]", nid)
+    if m:
+        return m.group(1).split("-")[0].strip()
+    
+    return nid.split("::")[-1]
