@@ -94,14 +94,6 @@ def attach_pdf(task_id, pdf_path):
         return ""
 
 
-# def _tc_from_nodeid(nid):
-#     m = re.search(r"\[([^\]]+)\]", nid)
-#     if m:
-#         return m.group(1).split("-")[0].strip()
-#     # fallback: pakai nama fungsi test kalau gak ada parametrize TC_ID
-#     return nid.split("::")[-1]
-
-
 def sync_results(results, mapping):
     for r in results:
         tid = mapping.get(r["tc_id"])
