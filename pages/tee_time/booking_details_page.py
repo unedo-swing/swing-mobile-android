@@ -1,11 +1,3 @@
-"""
-Booking details page object (Android) — Tee Time.
-
-Opened from "See booking details" on the confirmed screen. Holds the verify step
-+ readers for the booking summary, payment summary and history, plus the footer
-actions (See complete breakdown / See receipt). XPaths come from
-locators/tee_time/booking_details_locators.py.
-"""
 import re
 
 from core.android_base_page import AndroidBasePage
@@ -13,12 +5,10 @@ from locators.tee_time.booking_details_locators import BookingDetailsLocators as
 
 
 def _amounts(text: str) -> list[str]:
-    """All 'Rp. <number>' amounts found in a string, in order."""
     return re.findall(r"Rp\.\s?[\d.,]+", text or "")
 
 
 def _value_after_label(text: str) -> str:
-    """For a '<Label>\\n<value>' content-desc, return the value (after newline)."""
     return text.split("\n", 1)[1].strip() if "\n" in (text or "") else (text or "")
 
 
@@ -34,11 +24,9 @@ class BookingDetailsPage(AndroidBasePage):
 
     # ---- booking summary readers ----
     def get_status(self) -> str:
-        """Booking status badge, e.g. 'UPCOMING'."""
         return self._desc(L.label_status)
 
     def get_booking_id(self) -> str:
-        """The booking reference, e.g. 'HEPJB' (from 'Booking #HEPJB')."""
         text = self._desc(L.label_booking_id)
         return text.split("#", 1)[1].strip() if "#" in text else text.strip()
 
@@ -52,37 +40,29 @@ class BookingDetailsPage(AndroidBasePage):
         return self._desc(L.value_preferred_time)
 
     def get_no_of_players(self) -> str:
-        """e.g. '4 players'."""
         return self._desc(L.value_no_of_players)
 
     # ---- payment summary readers ----
     def get_subtotal(self) -> str:
-        """Subtotal amount, e.g. 'Rp. 3,000,000'."""
         amounts = _amounts(self._desc(L.row_subtotal))
         return amounts[-1] if amounts else ""
 
     def get_processing_fee(self) -> str:
-        """Effective processing fee (the last amount on the row; the earlier one is
-        the struck-through original), e.g. 'Rp. 0'."""
         amounts = _amounts(self._desc(L.row_processing_fee))
         return amounts[-1] if amounts else "Rp. 0"
 
     def get_processing_fee_original(self) -> str:
-        """The struck-through original processing fee (first amount), e.g. 'Rp. 10,000'."""
         amounts = _amounts(self._desc(L.row_processing_fee))
         return amounts[0] if amounts else ""
 
     def get_total_payment(self) -> str:
-        """Total payment amount, e.g. 'Rp. 3,000,000'."""
         amounts = _amounts(self._desc(L.row_total_payment))
         return amounts[-1] if amounts else ""
 
     def get_credits_earned(self) -> str:
-        """Swing Credits earned, e.g. '+260,000'."""
         return self._desc(L.value_credits_earned)
 
     def get_confirmed_timestamp(self) -> str:
-        """History 'Booking confirmed' timestamp, e.g. '16:50, 6 Aug 2026'."""
         return _value_after_label(self._desc(L.timeline_booking_confirmed))
 
     # ---- combined verify ----
@@ -90,9 +70,6 @@ class BookingDetailsPage(AndroidBasePage):
                        session: str | None = None, preferred_time: str | None = None,
                        no_of_players=None, total_payment: str | None = None,
                        booking_id: str | None = None) -> str:
-        """Assert the booking details screen and (optionally) its fields. Only
-        non-None args are asserted; a booking id is always required. Returns the
-        booking id."""
         assert self.is_visible(L.label_title, timeout=20), "Booking details screen not shown"
         actual_id = self.get_booking_id()
         actual_status = self.get_status()

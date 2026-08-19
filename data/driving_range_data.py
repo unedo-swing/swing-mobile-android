@@ -1,6 +1,6 @@
 import os
 
-from utils.excel_reader import get_rows_by_tc_id, read_row
+from utils.excel_reader import find_rows, get_rows_by_tc_id, read_row
 
 # Where the test data lives — file path + worksheet (both overridable by env).
 _DATA_PATH = os.getenv(
@@ -8,22 +8,34 @@ _DATA_PATH = os.getenv(
     os.path.join(os.path.dirname(__file__), "test_data_swing_mobile.xlsx"),
 )
 _SHEET = os.getenv("DRIVING_RANGE_SHEET", "Driving_Range")
+_ADD_ONS_SHEET = os.getenv("DRIVING_RANGE_ADDONS_SHEET", "Addons_Driving_Range")
+
+def load_add_ons(tc_id: str) -> list[dict]:
+    """The add-ons for one test case, or [] when the sheet lists none.
+
+    find_rows (not get_rows_by_tc_id) on purpose: a booking without add-ons is
+    a real scenario, so a TC missing from the add-ons sheet must not blow the
+    test up. A typo'd TC id still fails loudly — the TC_ID fixture loads the
+    Driving_Range sheet first, and that lookup does raise.
+    """
+    rows = find_rows(_DATA_PATH, "TC_ID", tc_id, sheet=_ADD_ONS_SHEET)
+    add_ons = []
+    for row in rows:
+        name = row.get("ADD_ONS_NAME")
+        if name in (None, ""):
+            continue
+        add_ons.append({
+            "add_ons_name": name,
+            "add_ons_qty": int(row.get("ADD_ONS_QTY") or 1),
+        })
+    return add_ons
 
 
 def _int_or_empty(value):
-    """int(value), but an empty cell stays empty (no crash) — some rows (e.g. a
-    cancellation TC) don't fill NUMBER_OF_BAYS / ADDON_QTY."""
     return "" if value in (None, "") else int(value)
 
 
 class DrivingRangeData:
-    """Driving-range test data, sourced from the Driving_Range sheet.
-
-    Attributes (D.REGION, D.DRIVING_RANGE_NAME, ...) are populated from one row.
-    Call load(tc_id) to switch to a specific test case by its TC_ID column — the
-    TC_ID fixture in conftest does this per test. Without a tc_id the first row
-    is used, so D works even when no TC_ID is selected.
-    """
 
     @classmethod
     def load(cls, tc_id: str | None = None):
@@ -31,6 +43,7 @@ class DrivingRangeData:
             row = get_rows_by_tc_id(_DATA_PATH, tc_id, id_column="TC_ID", sheet=_SHEET)[0]
         else:
             row = read_row(_DATA_PATH, sheet=_SHEET)
+        cls.TC_NAME = row.get("TC_NAME")
         cls.REGION = row.get("REGION")
         cls.DRIVING_RANGE_NAME = row.get("DRIVING_RANGE_NAME")
         cls.BOOKING_DATE = row.get("BOOKING_DATE")
@@ -41,6 +54,7 @@ class DrivingRangeData:
         cls.ADDON_NAME = row.get("ADDON_NAME")
         cls.ADDON_QTY = _int_or_empty(row.get("ADDON_QTY"))
         cls.PROMO_NAME = row.get("PROMO_NAME")
+        cls.PROMO_CODE = row.get("PROMO_CODE")
         cls.PAYMENT_METHOD = row.get("PAYMENT_METHOD")
         # total shown on the Activity booking card (used to pick the card)
         cls.TOTAL_PAYMENT = row.get("TOTAL_PAYMENT")
@@ -54,6 +68,7 @@ class DrivingRangeData:
         _acct = row.get("BANK_ACCOUNT_NUMBER")
         cls.BANK_ACCOUNT_NUMBER = "" if _acct in (None, "") else str(_acct)
         cls.BANK_ACCOUNT_NAME = row.get("BANK_ACCOUNT_NAME")
+        cls.CODE_BOOKING = row.get("CODE_BOOKING")
         return cls
 
 

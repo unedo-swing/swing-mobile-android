@@ -1,13 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Booking method bottom sheet.
-
-Opened after tapping "Book tee time" on the golf course details screen. Lets the
-user choose Group vs Standard booking, with a "Learn more" info dialog. Flutter
-app — elements surface through ``content-desc``. ``contains`` is used for the
-multi-line option cards.
-"""
-
-
 class BookingMethodLocators:
     # --- chooser sheet ---
     label_title = '//android.view.View[@content-desc="How would you like to make this tee time booking?"]'

@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Add credit card form.
-
-Opened from "Add credit card" on the Select payment method sheet. Flutter app —
-fields surface through ``hint``; the card-number field is an EditText inside the
-"0000 - 0000 - 0000 - 0000" container.
-"""
-
-
 class AddCreditCardLocators:
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'
     label_title = '//android.view.View[@content-desc="Add credit card"]'

@@ -164,17 +164,21 @@ jobs:
             adb install -r -g apps/app.apk
             appium --base-path / --log-level error --log appium.log &
             bash .github/scripts/wait_for_appium.sh
-            pytest -m "${{ steps.scope.outputs.marker }}" --junitxml=reports/junit.xml
+            pytest -m "${{ steps.scope.outputs.marker }}" --junitxml=reports/junit.xml --allure
 
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: evidence-${{ needs.fetch-apk.outputs.build }}-${{ github.run_number }}
+          # PDF_OUTPUT=allure (the default) keeps the evidence PDFs inside
+          # allure-results as attachments, so reports/**/*.pdf only matches
+          # when a run sets PDF_OUTPUT=reports|both.
           path: |
             reports/**/*.pdf
             reports/regression_summary.txt
             reports/junit.xml
+            reports/allure-results/**
             appium.log
           retention-days: 14
           if-no-files-found: warn

@@ -1,10 +1,3 @@
-"""
-Driving Range explore page object (Android).
-
-Opened from Home > Driving range — the driving-range listing with search and a
-Swing Pass filter. Per-screen STEPS only, each recording evidence with
-capture_step. XPaths come from locators/driving_range/explore_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.explore_locators import DrivingRangeExploreLocators as L
 
@@ -21,7 +14,6 @@ class DrivingRangeExplorePage(AndroidBasePage):
         return self.is_visible(L.search_bar, timeout=20)
 
     def verify_results_loaded(self):
-        """Wait out the list spinner after a search before picking a card."""
         assert self.wait_until_loaded(), "Driving range results still loading"
         self.capture_step("dr_results_loaded", "Driving range results finished loading")
 
@@ -40,7 +32,6 @@ class DrivingRangeExplorePage(AndroidBasePage):
         self.capture_step("dr_search_typed", f"Typed search '{query}'")
 
     def search_range(self, query: str):
-        """Open the search field and type a query in one step."""
         self.tap_search()
         self.type_text(L.search_input, query)
         self.press_search()
@@ -52,7 +43,6 @@ class DrivingRangeExplorePage(AndroidBasePage):
         self.capture_step("dr_recent_searches", "Recent searches are visible")
 
     def select_recent_search(self, name: str):
-        """Tap a recent-search item, e.g. 'Rainbow Hills Golf'."""
         self.click(L.recent_search_by_name % name)
         self.capture_step("dr_recent_pick", f"Selected recent search '{name}'")
 

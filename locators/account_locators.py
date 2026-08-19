@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Account tab.
-
-Flutter app — elements surface through ``content-desc``. Per-user values (name,
-username) use ``starts-with`` / a dynamic template so the locators survive
-changing values. Names follow ``<type>_<what>``.
-"""
-
-
 class AccountLocators:
     # --- profile header ---
     link_edit_personal_info = '//android.widget.ImageView[@content-desc="Edit my personal information"]'
@@ -47,3 +38,9 @@ class AccountLocators:
     tab_home = '//android.widget.ImageView[starts-with(@content-desc,"Home")]'
     tab_activity = '//android.widget.ImageView[starts-with(@content-desc,"Activity")]'
     tab_account = '//android.widget.ImageView[starts-with(@content-desc,"Account")]'
+    
+    # ----- Log out ---
+    label_logout = '//android.view.View[@content-desc="Log out?"]'
+    button_log_out_bottom_sheet = '//android.widget.Button[@content-desc="Log out"]'
+    button_cancel_logout = '//android.widget.Button[@content-desc="Cancel log out"]'
+    button_close_bottom_sheet = '//android.view.View[@content-desc="Log out?"]/following-sibling::android.widget.Button[last()]'

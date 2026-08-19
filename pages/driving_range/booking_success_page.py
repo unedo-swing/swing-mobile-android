@@ -1,10 +1,3 @@
-"""
-Driving Range booking success page object (Android) — the "You're confirmed!"
-screen shown after Pay now.
-
-Reads the booking summary and offers Finish / See booking details. XPaths come
-from locators/driving_range/booking_success_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.booking_success_locators import DrivingRangeBookingSuccessLocators as L
 
@@ -29,7 +22,6 @@ class DrivingRangeBookingSuccessPage(AndroidBasePage):
         return booking_id
 
     def get_booking_id(self) -> str:
-        """e.g. 'Booking #IBD3A'."""
         return self.scroll_and_find(L.label_booking_id).get_attribute("content-desc") or ""
 
     # a value read from its label's sibling, scrolled into view first
@@ -37,7 +29,6 @@ class DrivingRangeBookingSuccessPage(AndroidBasePage):
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def _read(self, getter) -> str:
-        """Run a getter, returning "" when the row isn't on screen."""
         try:
             return getter()
         except Exception:

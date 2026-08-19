@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Add a player bottom sheet.
-
-Opened from "Add a player" on the booking confirmation. Two tabs: "Search a
-friend" and "Add manually" (a first/last name, country, phone, email form).
-Flutter app — elements surface through ``content-desc`` / ``hint``.
-"""
-
-
 class AddPlayerLocators:
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'
     label_title = '//android.view.View[@content-desc="Add a player"]'

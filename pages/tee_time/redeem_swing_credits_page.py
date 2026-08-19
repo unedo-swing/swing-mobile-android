@@ -22,7 +22,6 @@ class RedeemSwingCreditsPage(AndroidBasePage):
         self.capture_step("tap_redeem", "Tapped Redeem Swing Credits")
 
     def redeem(self, code: str):
-        """Enter a code and submit in one step."""
         self.enter_code(code)
         self.tap_redeem()
 

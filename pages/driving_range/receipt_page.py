@@ -1,15 +1,3 @@
-"""
-Driving Range Receipt page object (Android).
-
-Opened from the booking details screen ("See receipt"). Shows the receipt id,
-range/booking, the booking summary rows, total, payment method and credits
-earned, plus a Send receipt action that is rate-limited (once per minute).
-
-Flutter app — values surface through ``content-desc``. Summary rows are a label
-View next to a value View (read via the label's sibling). Tapping "Swing Credits
-you earned" opens the shared Swing Credits earnings dialog (SwingCreditsEarningsPage).
-XPaths come from locators/driving_range/receipt_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.receipt_locators import DrivingRangeReceiptLocators as L
 
@@ -34,22 +22,18 @@ class DrivingRangeReceiptPage(AndroidBasePage):
 
     # ================= readers =================
     def _value(self, label: str) -> str:
-        """A summary value read from its label's sibling, scrolled into view."""
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def _read(self, getter) -> str:
-        """Run a getter, returning "" when the row isn't on screen."""
         try:
             return getter()
         except Exception:
             return ""
 
     def get_receipt_id(self) -> str:
-        """e.g. 'Receipt #8XOUY'."""
         return self.find(L.label_title).get_attribute("content-desc") or ""
 
     def get_booking_id(self) -> str:
-        """e.g. 'Booking #GSHRC'."""
         return self.scroll_and_find(L.label_booking_id).get_attribute("content-desc") or ""
 
     def get_date(self) -> str:
@@ -78,8 +62,6 @@ class DrivingRangeReceiptPage(AndroidBasePage):
 
     # ================= summary snapshot =================
     def get_summary(self) -> dict:
-        """Snapshot every booking field on this screen. Keys match the booking
-        confirmation / success / details summaries so screens can be compared."""
         self.scroll_to_top()
         summary = {
             "booking_id": self._read(self.get_booking_id),
@@ -129,8 +111,6 @@ class DrivingRangeReceiptPage(AndroidBasePage):
 
     # ================= send receipt / actions =================
     def open_credits_earnings(self):
-        """Tap 'Swing Credits you earned' to open the earnings dialog
-        (reuse pages/tee_time/swing_credits_earnings_page.py from the flow)."""
         self.click(L.label_credits_earned)
         self.capture_step("dr_receipt_open_credits", "Opened Swing Credits earnings")
 
@@ -146,11 +126,9 @@ class DrivingRangeReceiptPage(AndroidBasePage):
         self.capture_step("dr_receipt_send", "Tapped Send receipt")
 
     def is_send_on_cooldown(self) -> bool:
-        """True while the 'send again in mm:ss' banner is shown (rate-limited)."""
         return self.find_anywhere(L.label_send_cooldown) is not None
 
     def get_send_cooldown(self) -> str:
-        """The cooldown banner text, e.g. 'You can send the receipt again in 00:47...'."""
         el = self.find_anywhere(L.label_send_cooldown)
         return "" if el is None else (el.get_attribute("content-desc") or "")
 

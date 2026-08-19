@@ -1,12 +1,3 @@
-"""
-Shared base page.
-
-Page objects inherit from AndroidBasePage, which inherits from this class. All
-the common Appium interactions live here so page objects stay small and readable.
-
-Locators are plain XPath strings (or ``(by, value)`` tuples) from the files
-under ``locators/``; ``_resolve`` normalises them.
-"""
 import os
 import time
 
@@ -16,6 +7,8 @@ from selenium.common.exceptions import TimeoutException
 from appium.webdriver.common.appiumby import AppiumBy
 
 from config import settings
+from utils import allure_reporter
+from utils.pdf_reporter import humanize_step
 
 
 class BasePage:
@@ -182,4 +175,12 @@ class BasePage:
                 title=title, description=description, screenshot=path,
                 data=data, compare=compare,
             )
+        # Same step, second destination: the Allure timeline. No-op unless the
+        # run was started with --allure (see utils/allure_reporter.py).
+        with allure_reporter.step(f"{title} — {description}" if description else title):
+            allure_reporter.attach_png(path, humanize_step(title))
+            allure_reporter.attach_step_data(data, compare)
         return path
+
+    def wait_for(self, times: int):
+        time.sleep(times)

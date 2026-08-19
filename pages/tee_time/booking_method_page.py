@@ -1,11 +1,3 @@
-"""
-Booking method page object (Android) — Tee Time.
-
-The bottom sheet shown after "Book tee time": choose Group vs Standard booking,
-optionally open the "Booking method info" dialog. Per-screen STEPS only (actions
-+ verifications), each recording evidence with capture_step. XPaths come from
-locators/tee_time/booking_method_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.booking_method_locators import BookingMethodLocators as L
 

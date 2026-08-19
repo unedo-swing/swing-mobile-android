@@ -17,7 +17,34 @@ import os
 from appium.options.android import UiAutomator2Options
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DEFAULT_APK = os.path.join(_BASE_DIR, "apps", "app.apk")
+# Fallback builds, in preference order, used when APP names a file that isn't
+# there. app-dev.apk is the current name; app.apk is what it used to be called.
+_DEFAULT_APKS = [
+    os.path.join(_BASE_DIR, "apps", name) for name in ("app-dev.apk", "app.apk")
+]
+
+# APP values that mean "don't install anything — drive the build that's already
+# on the device". That's the only way to test a Play Store (production) install:
+# there is no APK to hand Appium, and installing one would replace the very
+# build under test.
+_USE_INSTALLED = ("none", "installed", "off", "false")
+
+
+def resolved_app() -> str:
+    """The .apk Appium should install, or "" to use the installed package.
+
+    A relative APP is resolved against this project's dir (not Appium's cwd).
+    APP=none (see _USE_INSTALLED) opts out of installing altogether; any other
+    missing/foreign path falls back to the bundled build.
+    """
+    app = os.getenv("APP", "").strip()
+    if app.casefold() in _USE_INSTALLED:
+        return ""
+    if app and not os.path.isabs(app):
+        app = os.path.join(_BASE_DIR, app)
+    if app and os.path.exists(app):
+        return app
+    return next((path for path in _DEFAULT_APKS if os.path.exists(path)), "")
 
 
 def android_options() -> UiAutomator2Options:
@@ -31,14 +58,9 @@ def android_options() -> UiAutomator2Options:
     if platform_version:
         options.platform_version = platform_version
 
-    # App target: an .apk path wins; otherwise use the installed package.
-    # A relative APP is resolved against this project's dir (not Appium's cwd),
-    # and a missing/foreign path falls back to the bundled build.
-    app = os.getenv("APP", "").strip()
-    if app and not os.path.isabs(app):
-        app = os.path.join(_BASE_DIR, app)
-    if not app or not os.path.exists(app):
-        app = _DEFAULT_APK if os.path.exists(_DEFAULT_APK) else ""
+    # App target: an .apk path wins; APP=none uses whatever is installed
+    # (production builds from the Play Store) — see resolved_app().
+    app = resolved_app()
     if app:
         options.app = app
     options.app_package = os.getenv("APP_PACKAGE", "app.getswing.dev")

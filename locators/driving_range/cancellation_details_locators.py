@@ -1,15 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Cancellation details screen.
-
-Opened from the Booking cancelled screen ('See cancellation details') or My
-Bookings. Read-only: booking summary, cancellation reason, refund destination
-(bank account) and the refund breakdown.
-
-Flutter app — values surface through ``content-desc``. Rows are a label View
-next to a value View (read via the label's following sibling).
-"""
-
-
 class CancellationDetailsLocators:
     # ================= header =================
     label_title = '//android.view.View[@content-desc="Cancellation details"]'

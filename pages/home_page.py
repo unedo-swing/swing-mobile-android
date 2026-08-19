@@ -10,11 +10,9 @@ class HomePage(AndroidBasePage):
         self.capture_step("home_screen", "Home screen is visible")
 
     def is_loaded(self) -> bool:
-        """True if the Home screen is up — handy as a login-success check."""
         return self.is_visible(L.tab_home, timeout=20)
 
     def verify_greeting_for(self, name: str):
-        """Assert the greeting includes the given user name."""
         greeting = self.get_text(L.label_greeting) or ""
         # content-desc holds the label; read it if text is empty
         if not greeting:
@@ -43,6 +41,14 @@ class HomePage(AndroidBasePage):
     def tap_search(self):
         self.click(L.search_bar)
         self.capture_step("tap_search", "Tapped search bar")
+
+    # ================= swing credits =================
+    def get_credits(self) -> str:
+        return self.scroll_and_find(L.label_credits).get_attribute("content-desc") or ""
+
+    def open_swing_credits(self):
+        self.click(L.label_credits)
+        self.capture_step("open_swing_credits", "Opened Swing Credits")
     
     # ============= region =============
     def tap_select_region(self):
@@ -96,6 +102,22 @@ class HomePage(AndroidBasePage):
     def tap_refer_friend(self):
         self.click(L.button_refer_friend)
         self.capture_step("refer_friend", "Tapped Refer a friend")
+    
+    def tap_join_swing_pass(self):
+        self.click(L.button_join_swing_pass)
+        self.capture_step("Open Swing Pass Page")
+
+    # ================= swing pass =================
+    def has_swing_pass(self) -> bool:
+        return self.find_anywhere(L.card_swing_pass) is not None
+
+    def open_swing_pass(self):
+        self.click(L.card_swing_pass)
+        self.capture_step("open_swing_pass", "Opened Swing Pass")
+        
+    def open_swing_credits(self):
+        self.click(L.label_credits)
+        self.capture_step("Open Swing Credits")
 
     # ================= need help / call center =================
     def tap_call_center(self):

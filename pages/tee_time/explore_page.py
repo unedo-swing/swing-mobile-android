@@ -1,10 +1,3 @@
-"""
-Explore page object (Android) — the Tee Time golf-courses listing.
-
-Opened from Home > Tee time. Per-screen STEPS only (actions + verifications),
-each recording evidence with capture_step. XPaths come from
-locators/tee_time/explore_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.explore_locators import ExploreLocators as L
 
@@ -72,7 +65,6 @@ class ExplorePage(AndroidBasePage):
         self.capture_step("toggle_swing_pass", "Toggled Only show Swing Pass partners")
 
     def set_swing_pass_partners(self, on: bool):
-        """Turn the Swing Pass filter on/off only if it isn't already."""
         if self.is_swing_pass_on() != on:
             self.toggle_swing_pass_partners()
         self.capture_step("swing_pass_state", f"Swing Pass partners = {on}")

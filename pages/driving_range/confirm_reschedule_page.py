@@ -1,16 +1,3 @@
-"""
-Driving Range Confirm reschedule page object (Android).
-
-Opened from a booking's 'Reschedule booking'. Shows the booking summary, the
-original vs new date & time, a reschedule-reason radio list, the reschedule
-details (fee, price difference, policy note), the payment method and a
-'Confirm reschedule & pay' action (disabled until a reason is chosen). Tapping
-it opens a 'Confirm reschedule booking?' dialog (Confirm / Go back).
-
-Flutter app — values surface through ``content-desc``. Summary rows are a label
-View next to a value View (read via the label's sibling).
-XPaths come from locators/driving_range/confirm_reschedule_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.confirm_reschedule_locators import (
     DrivingRangeConfirmRescheduleLocators as L,
@@ -31,7 +18,6 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
 
     # ================= readers =================
     def _value(self, label: str) -> str:
-        """A summary value read from its label's sibling, scrolled into view."""
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def _read(self, getter) -> str:
@@ -44,7 +30,6 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
         return self._value("Player name")
 
     def get_booking_id(self) -> str:
-        """e.g. '#A38OO'."""
         return self._value("Booking ID")
 
     def get_request_date_time(self) -> str:
@@ -60,8 +45,6 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
         return self._value("Bay type")
 
     def get_change_block(self) -> str:
-        """The original/new date & time block, e.g.
-        'Original date & time\\n18:00, 13 August 2026\\nNew date & time\\n22:00, 05 Aug 2026'."""
         return self.scroll_and_find(L.label_change_block).get_attribute("content-desc") or ""
 
     # ================= reschedule reason =================
@@ -71,7 +54,6 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
         self.capture_step("dr_reschedule_reason", "Reschedule reason section is visible")
 
     def select_reason(self, name: str):
-        """Pick a reschedule reason radio, e.g. 'Bad weather', 'Traffic jam'."""
         self.click(L.reason_by_name % name)
         self.capture_step("dr_reschedule_pick_reason", f"Selected reason '{name}'")
 
@@ -94,7 +76,6 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
         return self.scroll_and_find(L.value_payment_method).get_attribute("content-desc") or ""
 
     def tap_change_payment(self):
-        """Tap the payment-method row to change it."""
         self.click(L.value_payment_method)
         self.capture_step("dr_reschedule_change_payment", "Tapped payment method")
 
@@ -124,7 +105,6 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
         self.capture_step("dr_reschedule_confirm_enabled", "Confirm reschedule & pay is enabled")
 
     def tap_confirm_pay(self):
-        """Tap 'Confirm reschedule & pay' -> opens the confirm dialog."""
         self.click(L.button_confirm_pay)
         self.capture_step("dr_reschedule_confirm", "Tapped Confirm reschedule & pay")
 
@@ -138,7 +118,6 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
         self.capture_step("dr_reschedule_dialog", "Confirm reschedule dialog is visible")
 
     def dialog_confirm(self):
-        """Confirm on the 'Confirm reschedule booking?' dialog."""
         self.click(L.dialog_button_confirm)
         self.capture_step("dr_reschedule_dialog_confirm", "Tapped Confirm reschedule (dialog)")
 

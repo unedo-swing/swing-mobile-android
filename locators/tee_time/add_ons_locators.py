@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Select add-ons bottom sheet.
-
-Opened from the "N add-ons" row on the booking confirmation screen. Each add-on
-row's content-desc is "<Name>\nRp. <price>\n<count>" with a minus (first) and
-plus (second) ImageView. Flutter app — elements surface through ``content-desc``.
-"""
-
-
 class AddOnsLocators:
     label_title = '//android.view.View[@content-desc="Select add-ons"]'
     label_for_player = '//android.view.View[starts-with(@content-desc,"For ")]'

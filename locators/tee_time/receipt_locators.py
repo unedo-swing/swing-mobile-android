@@ -1,14 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Receipt screen.
-
-Opened from "See receipt" on the Booking details screen. Flutter app — values
-surface through ``content-desc``. Layout mirrors the "You're confirmed!" screen
-(label and value are SEPARATE sibling ``View`` nodes, value read via the label's
-following-sibling), plus a support section and a "Send receipt" footer button
-instead of Finish / See booking details.
-"""
-
-
 class ReceiptLocators:
     # --- header ---
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'

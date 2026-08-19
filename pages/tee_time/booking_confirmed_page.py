@@ -1,11 +1,3 @@
-"""
-Booking confirmed page object (Android) — Tee Time.
-
-The "You're confirmed!" success screen shown after paying on the booking
-confirmation screen. Holds the verify step + readers for the summary values and
-the two footer actions (Finish / See booking details). XPaths come from
-locators/tee_time/booking_confirmed_locators.py.
-"""
 import re
 
 from core.android_base_page import AndroidBasePage
@@ -13,7 +5,6 @@ from locators.tee_time.booking_confirmed_locators import BookingConfirmedLocator
 
 
 def _amount(text: str) -> str:
-    """The 'Rp. <number>' amount in a string, or '' if none."""
     m = re.search(r"Rp\.\s?[\d.,]+", text or "")
     return m.group(0) if m else ""
 
@@ -30,7 +21,6 @@ class BookingConfirmedPage(AndroidBasePage):
 
     # ---- readers ----
     def get_booking_id(self) -> str:
-        """The booking reference, e.g. 'HEPJB' (from 'Booking #HEPJB')."""
         text = self._desc(L.label_booking_id)
         return text.split("#", 1)[1].strip() if "#" in text else text.strip()
 
@@ -44,19 +34,15 @@ class BookingConfirmedPage(AndroidBasePage):
         return self._desc(L.value_preferred_time)
 
     def get_no_of_players(self) -> str:
-        """e.g. '4 players'."""
         return self._desc(L.value_no_of_players)
 
     def get_total(self) -> str:
-        """Total amount, e.g. 'Rp. 3,000,000'."""
         return _amount(self._desc(L.value_total))
 
     def get_payment_method(self) -> str:
-        """The payment method used, e.g. 'OVO'."""
         return self._desc(L.value_payment_method)
 
     def get_credits_earned(self) -> str:
-        """Swing Credits earned, e.g. '+ 260,000 (for all)'."""
         return self._desc(L.value_credits_earned)
 
     # ---- combined verify ----
@@ -64,9 +50,6 @@ class BookingConfirmedPage(AndroidBasePage):
                                  session: str | None = None, preferred_time: str | None = None,
                                  no_of_players=None, total: str | None = None,
                                  payment_method: str | None = None) -> str:
-        """Assert the success screen shows and (optionally) that each summary field
-        matches the expected value. Only non-None args are asserted. Always
-        asserts a booking id is present. Returns the booking id."""
         assert self.is_visible(L.label_title, timeout=20), "Booking confirmed screen not shown"
         if course_name is not None:
             assert self.is_visible(L.label_course_name % course_name), \

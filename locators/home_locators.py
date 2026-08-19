@@ -24,7 +24,17 @@ class HomeLocators:
 
     # --- membership / credits ---
     card_membership = '//*[contains(@content-desc,"Renews on")]'
+    # The Swing Pass card, for an account that already holds one — the way into
+    # the Swing Pass screen. Its second line switches wording once the Pass is
+    # cancelled ("Renews on ..." -> "Ends on ..."), so both are matched;
+    # card_membership above loses the card entirely for a cancelled member.
+    card_swing_pass = (
+        '//*[contains(@content-desc,"Renews on") or contains(@content-desc,"Ends on")]'
+    )
     label_credits = '//*[contains(@content-desc,"credits")]'
+    # shown INSTEAD of the card while the account has no Pass
+    button_join_swing_pass = '//android.view.View[@content-desc="Join Swing Pass"]'
+    
 
     # There are several identical "See all" links (one per carousel). Anchor
     # each to its section title so the right one is tapped.

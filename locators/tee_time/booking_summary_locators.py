@@ -1,23 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Booking summary screen.
-
-Opened via "See complete breakdown" on the Booking details screen. A single long
-scrollable page combining the booking's identity/summary, the player list, notes,
-terms, and the full price breakdown. Flutter app — values surface through
-``content-desc``.
-
-Layouts on this screen:
-  * Course/date/session/time -> label and value are SEPARATE sibling ``View``
-    nodes (value read via the label's following-sibling), same as Booking details.
-  * Player summary cards      -> one ImageView per player: "<Initials>\\n<Name>
-    (Host)\\nRp. <amount>\\n<Tier>" (no "(Host)" for non-hosts).
-  * Notes / terms             -> label View followed by a value/body View sibling.
-  * Price details rows        -> per-player ImageView: "<Name> (Host)\\n
-    Rp. <share>\\nPublished rate\\nRp. <rate>[\\n<Promo name>\\n- Rp. <discount>]".
-    "Processing fee" and "Total payment" are combined "Label\\nvalue" nodes.
-"""
-
-
 class BookingSummaryLocators:
     # --- header ---
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'

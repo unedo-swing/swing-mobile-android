@@ -1,16 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Booking details screen.
-
-Opened from "See booking details" on the confirmed screen (also reachable from
-Activity/History). Flutter app — values surface through ``content-desc``. This
-screen mixes two layouts:
-  * Booking summary  -> label and value are SEPARATE sibling ``View`` nodes
-                        (value read via the label's following-sibling).
-  * Payment summary  -> a row is one combined "Label\\nvalue" node (parsed in the
-                        page object). "Total payment" is an ``ImageView``.
-"""
-
-
 class BookingDetailsLocators:
     # --- header ---
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'

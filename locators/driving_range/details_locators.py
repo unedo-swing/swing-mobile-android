@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Details screen.
-
-Opened by tapping a range card in the driving-range Explore. Flutter app —
-elements surface through ``content-desc``. Dynamic bits (range name, date,
-bay tab, time) use a ``contains`` / exact template.
-"""
-
-
 class DrivingRangeDetailsLocators:
     # --- header ---
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'
@@ -64,3 +55,57 @@ class DrivingRangeDetailsLocators:
 
     # --- book ---
     button_book = '//android.widget.Button[@content-desc="Book driving range"]'
+
+    # ================================================================== #
+    # Additions from the latest details-screen dump
+    # ================================================================== #
+
+    # --- hero image gallery (top carousel) ---
+    gallery = '//android.widget.ScrollView/android.view.View[1]'
+    gallery_image = gallery + '//android.widget.ImageView'
+    # the little page-indicator dots sitting right under the carousel
+    gallery_indicator = gallery + '/following-sibling::android.view.View[1]'
+
+    # --- location line: "<City>, <Country>" • "<n>km away" ---
+    label_city = '//android.view.View[contains(@content-desc,", Indonesia")]'
+    button_distance = '//android.view.View[contains(@content-desc,"km away") and @clickable="true"]'
+
+    # --- promos ---
+    # every promo card carries "<Promo>\nSwing Pass Exclusive"
+    promo_cards = '//android.widget.ImageView[contains(@content-desc,"Swing Pass Exclusive")]'
+    button_promo_by_name = promo_by_name + '/ancestor::android.view.View[@clickable="true"][1]'
+    badge_active_by_promo = promo_by_name + '//android.widget.ImageView[@content-desc="Active"]'
+    badge_join_by_promo = promo_by_name + '//android.widget.ImageView[@content-desc="Join"]'
+    button_see_all_featured_promo = '//android.widget.ImageView[@content-desc="See all"]'
+    # the promo strip scrolls horizontally — anchor it on the cards it holds.
+    # "See all" is the tile past the last promo, so it only renders after the
+    # strip is swiped left.
+    promo_carousel = promo_cards + '/ancestor::android.view.View[@scrollable="true"][1]'
+    list_featured_promo = '//android.view.View[@content-desc="%s"]/following-sibling::android.view.View//android.view.View/android.widget.ImageView'
+
+    # --- date strip (content-desc is "<DAY>\n<dd Mon>") ---
+    dates_all = (
+        '//android.view.View['
+        'starts-with(@content-desc,"MON") or starts-with(@content-desc,"TUE") or '
+        'starts-with(@content-desc,"WED") or starts-with(@content-desc,"THU") or '
+        'starts-with(@content-desc,"FRI") or starts-with(@content-desc,"SAT") or '
+        'starts-with(@content-desc,"SUN")]'
+    )
+    # date_by_day % 'TUE'
+    date_by_day = '//android.view.View[starts-with(@content-desc,"%s")]'
+
+    # --- bay tabs (content-desc is "<Name>\nTab N of 2") ---
+    bay_tabs_all = '//android.view.View[contains(@content-desc,"Tab ")]'
+    bay_tab_selected = '//android.view.View[contains(@content-desc,"Tab ") and @selected="true"]'
+    # bay_tab_selected_by_name % 'Regular'
+    bay_tab_selected_by_name = '//android.view.View[starts-with(@content-desc,"%s") and @selected="true"]'
+
+    # --- time slots, scoped to the "Select time & duration" section so they
+    #     can never collide with a time printed in the summary bar ---
+    time_slots_container = label_select_time + '/following-sibling::android.view.View[1]'
+    time_slots_all = time_slots_container + '//android.view.View[@content-desc]'
+    # time_slot_by_text % '01:00'
+    time_slot_by_text = time_slots_container + '//android.view.View[@content-desc="%s"]'
+
+    # --- book ---
+    button_book_disabled = button_book + '[@enabled="false"]'

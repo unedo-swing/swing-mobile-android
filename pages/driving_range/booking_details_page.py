@@ -30,22 +30,18 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
 
     # ================= readers =================
     def _value(self, label: str) -> str:
-        """A summary value read from its label's sibling, scrolled into view."""
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def _row(self, label: str) -> str:
-        """A payment row's full content-desc (label + amount), scrolled in."""
         return self.scroll_and_find(L.payment_row_by_label % label).get_attribute("content-desc") or ""
 
     def _read(self, getter) -> str:
-        """Run a getter, returning "" when the row isn't on screen."""
         try:
             return getter()
         except Exception:
             return ""
 
     def get_booking_id(self) -> str:
-        """e.g. 'Booking #GSHRC'."""
         return self.scroll_and_find(L.label_booking_id).get_attribute("content-desc") or ""
 
     def get_player_name(self) -> str:
@@ -68,8 +64,6 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
 
     # ================= payment summary =================
     def _last_amount(self, label: str) -> str:
-        """The last Rp amount in a payment row (the charged value, e.g. after a
-        struck-through fee: 'Processing fee\\nRp. 10,000\\nRp. 0' -> 'Rp. 0')."""
         amounts = _amounts(self._row(label))
         return amounts[-1] if amounts else ""
 
@@ -87,8 +81,6 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
 
     # ================= summary snapshot =================
     def get_summary(self) -> dict:
-        """Snapshot every booking field on this screen. Keys match the booking
-        confirmation / success summaries so screens can be compared."""
         self.scroll_to_top()
         summary = {
             "booking_id": self._read(self.get_booking_id),
@@ -139,13 +131,11 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
         self.capture_step("dr_details_history", "History section is visible")
 
     def verify_history_item(self, status: str):
-        """Check a history entry is present, e.g. 'Booking confirmed'."""
         assert self.is_visible_after_scroll(L.history_item_by_status % status), \
             f"History entry '{status}' not shown"
         self.capture_step("dr_details_history_item", f"History entry shown: {status}")
 
     def get_history_item(self, status: str) -> str:
-        """The full history entry, e.g. 'Booking confirmed\\n11:32, 5 Aug 2026'."""
         return self.scroll_and_find(L.history_item_by_status % status).get_attribute("content-desc") or ""
 
     # ================= reschedule summary (present when the booking was rescheduled) =================
@@ -153,8 +143,6 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
     _RESCHEDULED_STATUS = "Booking Rescheduled"
 
     def is_rescheduled(self) -> bool:
-        """True when the booking was rescheduled (a Reschedule summary section
-        appears on the details screen)."""
         return self.find_anywhere(L.label_reschedule_summary) is not None
 
     def verify_reschedule_summary_section(self):
@@ -163,8 +151,6 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
         self.capture_step("dr_details_reschedule_summary", "Reschedule summary section is visible")
 
     def get_reschedule_change(self) -> str:
-        """The original/new date & time block, e.g.
-        'Original date & time\\n18:00, 13 Aug 2026\\nNew date & time\\n22:00, 5 Aug 2026'."""
         return self.scroll_and_find(L.label_reschedule_change).get_attribute("content-desc") or ""
 
     def get_reschedule_fee(self) -> str:
@@ -181,7 +167,6 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
         self.capture_step("dr_details_reschedule_see_details", "Tapped See details (reschedule)")
 
     def get_reschedule_summary(self) -> dict:
-        """Snapshot the Reschedule summary section."""
         summary = {
             "change": self._read(self.get_reschedule_change),
             "reschedule_fee": self._read(self.get_reschedule_fee),
@@ -196,7 +181,6 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
         self.verify_history_item(self._RESCHEDULED_STATUS)
 
     def get_rescheduled_entry(self) -> str:
-        """The 'Booking Rescheduled\\n<time>\\nSee details' history entry, or ''."""
         try:
             return self.get_history_item(self._RESCHEDULED_STATUS)
         except Exception:

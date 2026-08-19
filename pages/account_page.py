@@ -1,9 +1,3 @@
-"""
-Account page object (Android) — the Account tab.
-
-Per-screen STEPS only (actions + verifications), each recording evidence with
-capture_step. XPaths come from locators/account_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.account_locators import AccountLocators as L
 
@@ -73,12 +67,27 @@ class AccountPage(AndroidBasePage):
 
     # --- log out ---
     def tap_log_out(self):
-        self.scroll_to_text("Log out")
         self.click(L.button_log_out)
         self.capture_step("log_out", "Tapped Log out")
+    
+    def verify_bottom_sheet_log_out(self):
+        assert self.is_visible(L.label_logout)
+        self.capture_step("Open Bottom Sheet Logout")
+    
+    def tap_log_out_bottom_sheet(self):
+        self.click(L.button_log_out_bottom_sheet)
+        self.capture_step("Click Log out")
+    
+    def tap_cancel_log_out(self):
+        self.click(L.button_cancel_logout)
+        self.capture_step("Cancel Logout")
+    
+    def close_bottom_sheet_log_out(self):
+        self.click(L.button_close_bottom_sheet)
+        self.capture_step("Close Bottom Sheet Logout")
+        
 
     def open_menu(self, label: str):
-        """Open any Account menu row by its visible label."""
         self.click(L.menu_item % label)
         self.capture_step("account_menu", f"Opened '{label}'")
 

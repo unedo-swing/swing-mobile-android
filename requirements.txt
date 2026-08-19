@@ -1,6 +1,19 @@
+# Automation runtime
 Appium-Python-Client>=4.0.0
 selenium>=4.20.0
 pytest>=8.0.0
-reportlab>=4.1.0
 python-dotenv>=1.0.1
+
+# Test data (data/*.py read the Excel workbook)
 openpyxl>=3.1.0
+
+# Reporting
+reportlab>=4.1.0          # PDF evidence — utils/pdf_reporter.py
+allure-pytest>=2.13.5     # Allure results — utils/allure_reporter.py, opt-in with --allure
+                          # rendering the report also needs the Allure CLI (Java):
+                          #   brew install allure
+
+# HTTP — utils/api_client.py (backend calls: OTP request, data checks) and
+# .github/scripts/fetch_firebase_apk.py (Firebase App Distribution, CI only)
+requests>=2.31.0
+google-auth>=2.28.0

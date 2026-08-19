@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Golf course details screen.
-
-Opened by tapping a course card in Explore. Flutter app — elements surface
-through ``content-desc``. Dynamic bits (course name, date, time slot) use a
-``contains`` / exact template. Names follow ``<type>_<what>``.
-"""
-
-
 class GolfCourseDetailsLocators:
     # --- header ---
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'

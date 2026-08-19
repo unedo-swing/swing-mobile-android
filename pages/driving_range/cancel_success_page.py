@@ -1,13 +1,3 @@
-"""
-Driving Range Booking cancelled page object (Android).
-
-The success screen shown after confirming a cancellation ("Booking cancelled").
-Shows the booking, the refund amount, a refund-process note, and Finish /
-See cancellation details actions.
-
-Flutter app — values surface through ``content-desc``.
-XPaths come from locators/driving_range/cancel_success_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.cancel_success_locators import CancelSuccessLocators as L
 
@@ -36,7 +26,6 @@ class DrivingRangeCancelSuccessPage(AndroidBasePage):
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def get_booking_id(self) -> str:
-        """e.g. 'Booking #GSHRC'."""
         return self.scroll_and_find(L.label_booking_id).get_attribute("content-desc") or ""
 
     def get_cancellation_date_time(self) -> str:

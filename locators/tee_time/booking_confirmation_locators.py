@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Booking confirmation screen.
-
-Opened after choosing a booking method. Flutter app — elements surface through
-``content-desc``. Multi-line values (booking summary, player cards, price lines)
-are read via ``starts-with`` / ``contains`` and parsed in the page object.
-"""
-
-
 class BookingConfirmationLocators:
     # --- header ---
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'

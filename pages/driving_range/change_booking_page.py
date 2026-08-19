@@ -1,14 +1,3 @@
-"""
-Driving Range Change Booking page object (Android).
-
-Opened from a booking's ⋮ menu > 'Reschedule booking'. Two tabs — Reschedule
-(Tab 1 of 2) and Cancellation (Tab 2 of 2). The Reschedule tab shows the
-reschedule policy, the booking date & time, the reschedule cost and a
-'Continue reschedule' action.
-
-Flutter app — values surface through ``content-desc``.
-XPaths come from locators/driving_range/change_booking_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.change_booking_locators import ChangeBookingLocators as L
 
@@ -41,17 +30,12 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
         self.capture_step("dr_reschedule_policy", "Reschedule policy section is visible")
 
     def get_policy_text(self) -> str:
-        """The reschedule policy text, e.g.
-        '•  Reschedule anytime:\\n•  Allowed for Rp. 15,000'."""
         return self.scroll_and_find(L.label_policy_text).get_attribute("content-desc") or ""
 
     def get_booking_datetime(self) -> str:
-        """The booking date & time block, e.g.
-        'Allowed for Rp. 15,000\\n18:00, 12 Aug 2026\\n(Booking date & time)'."""
         return self.scroll_and_find(L.label_booking_datetime).get_attribute("content-desc") or ""
 
     def get_reschedule_now_text(self) -> str:
-        """e.g. 'You can reschedule now for Rp. 15,000'."""
         el = self.find_anywhere(L.label_reschedule_now)
         return "" if el is None else (el.get_attribute("content-desc") or "")
 
@@ -66,17 +50,13 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
         self.capture_step("dr_cancellation_policy", "Cancellation policy section is visible")
 
     def get_refund_tier(self, starts_with: str) -> str:
-        """A refund tier row by its leading text, e.g.
-        get_refund_tier('100% refund') -> '100% refund (with promo code)\\n17:00, 12 Aug 2026'."""
         return self.scroll_and_find(L.refund_tier_by_text % starts_with).get_attribute("content-desc") or ""
 
     def get_cancel_now_text(self) -> str:
-        """e.g. 'You can cancel now and still get refund for 50%!'."""
         el = self.find_anywhere(L.label_cancel_now)
         return "" if el is None else (el.get_attribute("content-desc") or "")
 
     def tap_continue_cancel(self):
-        """Continue to the cancellation confirmation flow."""
         self.click(L.button_continue_cancel)
         self.capture_step("dr_continue_cancel", "Tapped Continue cancel")
 
@@ -85,7 +65,6 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
         return self.is_enabled(L.button_continue_reschedule)
 
     def tap_continue_reschedule(self):
-        """Continue to the Confirm reschedule screen."""
         self.click(L.button_continue_reschedule)
         self.capture_step("dr_continue_reschedule", "Tapped Continue reschedule")
 

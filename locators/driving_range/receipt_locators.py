@@ -1,15 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Receipt screen.
-
-Opened from the booking details screen ("See receipt"). Shows the receipt id,
-range/booking, the booking summary rows, total, payment method, credits earned,
-a support prompt and a Send receipt action (rate-limited to once a minute).
-
-Flutter app — values surface through ``content-desc``. Summary rows are a label
-View next to a value View, read via the label's following sibling.
-"""
-
-
 class DrivingRangeReceiptLocators:
     # ================= header =================
     label_title = '//android.view.View[contains(@content-desc,"Receipt #")]'

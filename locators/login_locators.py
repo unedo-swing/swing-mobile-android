@@ -3,6 +3,9 @@ class LoginLocators:
     # --- phone entry screen ---
     label_header = '//android.view.View[@content-desc="Log in or sign up"]'
     button_country_code = '//android.view.View[@hint="Country"]'
+    # The picked country as shown on the button: 'ID (+62)'. Matched on the
+    # '(+' rather than a fixed country so any selection is readable.
+    label_country_code = '//android.view.View[contains(@text,"(+")]'
     input_phone_number = '//android.widget.EditText[@hint="Phone Number"]'
     button_continue = '//android.widget.Button[@content-desc="Continue"]'
     label_verification_title = '//android.view.View[@content-desc="Select verification method"]'

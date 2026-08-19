@@ -1,13 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Booking cancelled screen.
-
-The success screen shown after confirming a cancellation. Shows the booking,
-the refund amount, a refund-process note, and Finish / See cancellation details.
-
-Flutter app — values surface through ``content-desc``.
-"""
-
-
 class CancelSuccessLocators:
     label_title = '//android.view.View[@content-desc="Booking cancelled"]'
     label_subtitle = '//*[contains(@content-desc,"look forward to your next booking")]'

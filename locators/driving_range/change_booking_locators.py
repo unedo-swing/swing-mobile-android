@@ -1,17 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Change Booking screen.
-
-Opened from a booking's ⋮ menu > 'Reschedule booking'. Has two tabs —
-Reschedule (Tab 1 of 2) and Cancellation (Tab 2 of 2). The Reschedule tab shows
-the reschedule policy, the booking date & time, the reschedule cost and a
-'Continue reschedule' action.
-
-Flutter app — values surface through ``content-desc``. The tab / policy rows are
-"\\n"-joined, so tabs are matched by their unique "Tab N of 2" text (the plain
-word "Reschedule" also appears in the policy heading).
-"""
-
-
 class ChangeBookingLocators:
     # ================= header =================
     label_change_booking = '//android.view.View[@content-desc="Change Booking"]'

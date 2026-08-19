@@ -1,16 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Booking confirmed ("You're confirmed!")
-screen.
-
-Shown after a successful payment on the booking confirmation screen. Flutter app
-— values surface through ``content-desc``. Unlike the pre-payment confirmation
-screen (where a summary row is one "Label\\nvalue" node), here each label and its
-value are SEPARATE sibling ``View`` nodes, so a value is read via its label's
-following-sibling. The following-sibling axis targets ``android.view.View``
-explicitly, so a non-View sibling (e.g. the payment-method icon) is skipped.
-"""
-
-
 class BookingConfirmedLocators:
     # --- success header ---
     # NOTE: curly apostrophe (U+2019) in "You're confirmed!" — matched exactly.

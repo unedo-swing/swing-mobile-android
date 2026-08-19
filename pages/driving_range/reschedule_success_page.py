@@ -1,14 +1,3 @@
-"""
-Driving Range Booking rescheduled page object (Android).
-
-The success screen shown after confirming a reschedule ("Booking rescheduled").
-Shows the range/booking, the original vs new date & time, the total, the payment
-method and Finish / See booking details actions.
-
-Flutter app — values surface through ``content-desc``. The Total / Payment rows
-are a label View next to a value View (read via the label's sibling).
-XPaths come from locators/driving_range/reschedule_success_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.reschedule_success_locators import (
     DrivingRangeRescheduleSuccessLocators as L,
@@ -45,12 +34,9 @@ class DrivingRangeRescheduleSuccessPage(AndroidBasePage):
             return ""
 
     def get_booking_id(self) -> str:
-        """e.g. 'Booking #A38OO'."""
         return self.scroll_and_find(L.label_booking_id).get_attribute("content-desc") or ""
 
     def get_change_block(self) -> str:
-        """The original/new date & time block, e.g.
-        'Original date & time\\n18:00, 13 Aug 2026\\nNew date & time\\n22:00, 5 Aug 2026'."""
         return self.scroll_and_find(L.label_change_block).get_attribute("content-desc") or ""
 
     def get_total(self) -> str:

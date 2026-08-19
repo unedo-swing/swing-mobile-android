@@ -1,81 +1,203 @@
 import pytest
 
-from data.driving_range_data import DrivingRangeData as D
+from data.driving_range_data import DrivingRangeData as D, load_add_ons
+from utils.pdf_reporter import init_pdf, generate_pdf
 
 
 @pytest.mark.android
 class TestDrivingRangeBooking:
-
-    @pytest.mark.skip
-    @pytest.mark.parametrize("TC_ID", ["TC_DR_00002"], indirect=True)
-    def test_end_to_end_booking_with_promo(self, TC_ID, login_flow, driving_range_flow):
-        login_flow.verify_home()
-        driving_range_flow.book_driving_range(
-            D.REGION, D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME,
-            D.TIME_SLOT_START, D.TIME_SLOT_END, D.NUMBER_OF_BAYS,
-        )
-        driving_range_flow.apply_promo(D.PROMO_NAME)
-        driving_range_flow.change_payment(D.PAYMENT_METHOD)
-        confirmed = driving_range_flow.pay_and_get_confirmed_booking()
-
-        assert confirmed["booking_id"].startswith("Booking #")
-        assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
-
-        driving_range_flow.open_booking_details()
-        driving_range_flow.verify_booking_details(
-            booking_id=confirmed["booking_id"], date=confirmed["date"],
-            booking_time=confirmed["booking_time"], duration=confirmed["duration"],
-            bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
-        )
-
-    @pytest.mark.skip
-    @pytest.mark.parametrize("TC_ID", ["TC_DR_00003"], indirect=True)
-    def test_end_to_end_booking_with_auto_applied_promo(self, TC_ID, login_flow, driving_range_flow):
-        login_flow.verify_home()
-        driving_range_flow.book_driving_range(
-            D.REGION, D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME,
-            D.TIME_SLOT_START, D.TIME_SLOT_END, D.NUMBER_OF_BAYS,
-        )
-        driving_range_flow.apply_promo(D.PROMO_NAME)
-        driving_range_flow.change_payment(D.PAYMENT_METHOD)
-        confirmed = driving_range_flow.pay_and_get_confirmed_booking()
-
-        assert confirmed["booking_id"].startswith("Booking #")
-        assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
-
-        driving_range_flow.open_booking_details()
-        driving_range_flow.verify_booking_details(
-            booking_id=confirmed["booking_id"], date=confirmed["date"],
-            booking_time=confirmed["booking_time"], duration=confirmed["duration"],
-            bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
-        )
     
-    @pytest.mark.regression
-    @pytest.mark.parametrize("TC_ID", ["TC_DR_00004"], indirect=True)
-    def test_end_to_end_booking_without_promo(self, TC_ID, login_flow, driving_range_flow):
+    def test_verify_driving_range_venue_details(self,TC_ID, login_flow, driving_range_flow):
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
         login_flow.verify_home()
-        driving_range_flow.book_driving_range(
-            D.REGION, D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME,
-            D.TIME_SLOT_START, D.TIME_SLOT_END, D.NUMBER_OF_BAYS,
-        )
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        generate_pdf(pdf)
+    
+    
+    def test_verify_featured_promo_driving_range_venue_details(self,TC_ID, login_flow, driving_range_flow):
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        
+        driving_range_flow.verify_featured_promo()
+        generate_pdf(pdf)
+    
+    def test_verify_maximum_bays(self,TC_ID, login_flow, driving_range_flow):
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.verify_maximum_bays(D.NUMBER_OF_BAYS)
+        generate_pdf(pdf)
+    
+    def test_verify_minimum_balls(self,TC_ID, login_flow, driving_range_flow):
+        ADD_ONS = load_add_ons(TC_ID)
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.book_and_set_bays(D.NUMBER_OF_BAYS)
+        driving_range_flow.add_addons(ADD_ONS)
+        driving_range_flow.verify_minimum_balls(ADD_ONS)
+        generate_pdf(pdf)
+    
+    def test_end_to_end_booking_driving_range_time_based_without_promo(self,TC_ID, login_flow, driving_range_flow):
+        ADD_ONS = load_add_ons(TC_ID)
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.book_and_set_bays(D.NUMBER_OF_BAYS)
+        driving_range_flow.add_addons(ADD_ONS)
         driving_range_flow.remove_promo()
         driving_range_flow.change_payment(D.PAYMENT_METHOD)
         confirmed = driving_range_flow.pay_and_get_confirmed_booking()
-
         assert confirmed["booking_id"].startswith("Booking #")
         assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
-
         driving_range_flow.open_booking_details()
         driving_range_flow.verify_booking_details(
             booking_id=confirmed["booking_id"], date=confirmed["date"],
             booking_time=confirmed["booking_time"], duration=confirmed["duration"],
             bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
         )
+        driving_range_flow.go_back_to_activity()
+        generate_pdf(pdf)
+        
+    
+    def test_end_to_end_booking_driving_range_time_based_with_autoapplied_promo(self,TC_ID, login_flow, driving_range_flow):
+        ADD_ONS = load_add_ons(TC_ID)
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.book_and_set_bays(D.NUMBER_OF_BAYS)
+        driving_range_flow.add_addons(ADD_ONS)
+        driving_range_flow.verify_promo_auto_applied(D.PROMO_NAME)
+        driving_range_flow.change_payment(D.PAYMENT_METHOD)
+        confirmed = driving_range_flow.pay_and_get_confirmed_booking()
+        assert confirmed["booking_id"].startswith("Booking #")
+        assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
+        driving_range_flow.open_booking_details()
+        driving_range_flow.verify_booking_details(
+            booking_id=confirmed["booking_id"], date=confirmed["date"],
+            booking_time=confirmed["booking_time"], duration=confirmed["duration"],
+            bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
+        )
+        driving_range_flow.go_back_to_activity()
+        generate_pdf(pdf)
+    
+    def test_end_to_end_booking_driving_range_time_based_with_redeem_promo(self,TC_ID, login_flow, driving_range_flow):
+        ADD_ONS = load_add_ons(TC_ID)
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.book_and_set_bays(D.NUMBER_OF_BAYS)
+        driving_range_flow.add_addons(ADD_ONS)
+        driving_range_flow.change_promo_with_add_promo_code(D.PROMO_NAME, D.PROMO_CODE)
+        driving_range_flow.change_payment(D.PAYMENT_METHOD)
+        confirmed = driving_range_flow.pay_and_get_confirmed_booking()
+        assert confirmed["booking_id"].startswith("Booking #")
+        assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
+        driving_range_flow.open_booking_details()
+        driving_range_flow.verify_booking_details(
+            booking_id=confirmed["booking_id"], date=confirmed["date"],
+            booking_time=confirmed["booking_time"], duration=confirmed["duration"],
+            bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
+        )
+        driving_range_flow.go_back_to_activity()
+        generate_pdf(pdf)
+    
+    def test_end_to_end_booking_driving_range_time_based_with_promo_bxgy(self,TC_ID, login_flow, driving_range_flow):
+        ADD_ONS = load_add_ons(TC_ID)
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.book_and_set_bays(D.NUMBER_OF_BAYS)
+        driving_range_flow.add_addons(ADD_ONS)
+        driving_range_flow.change_promo_with_add_promo_code(D.PROMO_NAME, D.PROMO_CODE)
+        driving_range_flow.change_payment(D.PAYMENT_METHOD)
+        confirmed = driving_range_flow.pay_and_get_confirmed_booking()
+        assert confirmed["booking_id"].startswith("Booking #")
+        assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
+        driving_range_flow.open_booking_details()
+        driving_range_flow.verify_booking_details(
+            booking_id=confirmed["booking_id"], date=confirmed["date"],
+            booking_time=confirmed["booking_time"], duration=confirmed["duration"],
+            bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
+        )
+        driving_range_flow.go_back_to_activity()
+        generate_pdf(pdf)
+    
+    def test_end_to_end_booking_driving_range_time_based_without_promo_used_credit(self,TC_ID, login_flow, driving_range_flow):
+        ADD_ONS = load_add_ons(TC_ID)
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.book_and_set_bays(D.NUMBER_OF_BAYS)
+        driving_range_flow.add_addons(ADD_ONS)
+        driving_range_flow.remove_promo()
+        driving_range_flow.change_payment(D.PAYMENT_METHOD)
+        driving_range_flow.switch_on_swing_credits()
+        confirmed = driving_range_flow.pay_and_get_confirmed_booking()
+        assert confirmed["booking_id"].startswith("Booking #")
+        assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
+        driving_range_flow.open_booking_details()
+        driving_range_flow.verify_booking_details(
+            booking_id=confirmed["booking_id"], date=confirmed["date"],
+            booking_time=confirmed["booking_time"], duration=confirmed["duration"],
+            bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
+        )
+        driving_range_flow.go_back_to_activity()
+        generate_pdf(pdf)
+    
+    def test_end_to_end_booking_driving_range_time_based_with_promo_used_credit(self,TC_ID, login_flow, driving_range_flow):
+        ADD_ONS = load_add_ons(TC_ID)
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
+        login_flow.verify_home()
+        driving_range_flow.select_region(D.REGION)
+        driving_range_flow.open_driving_range()
+        driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
+        driving_range_flow.select_schedule(D.DRIVING_RANGE_NAME, D.BOOKING_DATE, D.BAY_NAME, D.TIME_SLOT_START, D.TIME_SLOT_END)
+        driving_range_flow.book_and_set_bays(D.NUMBER_OF_BAYS)
+        driving_range_flow.add_addons(ADD_ONS)
+        driving_range_flow.remove_promo()
+        driving_range_flow.change_payment(D.PAYMENT_METHOD)
+        driving_range_flow.switch_on_swing_credits()
+        confirmed = driving_range_flow.pay_and_get_confirmed_booking()
+        assert confirmed["booking_id"].startswith("Booking #")
+        assert D.PAYMENT_METHOD.casefold() in confirmed["payment_method"].casefold()
+        driving_range_flow.open_booking_details()
+        driving_range_flow.verify_booking_details(
+            booking_id=confirmed["booking_id"], date=confirmed["date"],
+            booking_time=confirmed["booking_time"], duration=confirmed["duration"],
+            bays=confirmed["bays"], bay_type=confirmed["bay_type"], total=confirmed["total"],
+        )
+        driving_range_flow.go_back_to_activity()
+        generate_pdf(pdf)
 
-    @pytest.mark.skip
-    @pytest.mark.parametrize("TC_ID", ["TC_DR_00005"], indirect=True)
     def test_reschedule_booking(self, TC_ID, login_flow, driving_range_flow):
-        # open the existing booking from the Activity screen
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
         login_flow.verify_home()
         driving_range_flow.open_activity()
         driving_range_flow.open_driving_range_card(
@@ -93,11 +215,10 @@ class TestDrivingRangeBooking:
         # the booking details now show the reschedule (Reschedule summary + history)
         driving_range_flow.reschedule_success.tap_see_booking_details()
         driving_range_flow.booking_details.verify_rescheduled()
+        generate_pdf(pdf)
 
-    @pytest.mark.skip
-    @pytest.mark.parametrize("TC_ID", ["TC_DR_00006"], indirect=True)
     def test_cancel_booking(self, TC_ID, login_flow, driving_range_flow):
-        # open the existing booking from the Activity screen
+        pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
         login_flow.verify_home()
         driving_range_flow.open_activity()
         driving_range_flow.open_driving_range_card(
@@ -121,3 +242,4 @@ class TestDrivingRangeBooking:
             bank_name=D.BANK_NAME, account_number=D.BANK_ACCOUNT_NUMBER,
             account_holder_name=D.BANK_ACCOUNT_NAME,
         )
+        generate_pdf(pdf)

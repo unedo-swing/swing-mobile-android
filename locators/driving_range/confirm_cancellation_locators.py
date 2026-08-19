@@ -1,16 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Confirm cancellation screen.
-
-Opened from Change Booking > Cancellation tab > 'Continue cancel'. Shows the
-booking summary, a cancellation-reason radio list, a refund destination (bank
-account) and a refund breakdown, then a 'Confirm & cancel' action (disabled
-until a reason + bank details are provided).
-
-Flutter app — values surface through ``content-desc``; the bank fields expose a
-``hint`` instead. Summary rows are a label View next to a value View.
-"""
-
-
 class ConfirmCancellationLocators:
     # ================= header =================
     label_title = '//android.view.View[@content-desc="Confirm cancellation"]'

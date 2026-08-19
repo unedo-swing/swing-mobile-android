@@ -1,15 +1,3 @@
-"""
-Driving Range Confirm cancellation page object (Android).
-
-Opened from Change Booking > Cancellation tab > 'Continue cancel'. Shows the
-booking summary, a cancellation-reason radio list, a refund destination (bank
-account) and a refund breakdown, then 'Confirm & cancel' (disabled until a
-reason + bank details are provided). Confirming opens a 'Confirm cancel booking?'
-dialog (Confirm cancellation / Go back).
-
-Flutter app — values surface through ``content-desc``; the bank fields expose a
-``hint``. XPaths come from locators/driving_range/confirm_cancellation_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.confirm_cancellation_locators import (
     ConfirmCancellationLocators as L,
@@ -33,7 +21,6 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def get_booking_id(self) -> str:
-        """e.g. '#GSHRC'."""
         return self._value("Booking ID")
 
     def get_cancellation_date_time(self) -> str:
@@ -46,7 +33,6 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
         self.capture_step("dr_cancel_reason", "Cancellation reason section is visible")
 
     def select_reason(self, name: str):
-        """Pick a cancellation reason, e.g. 'Bad weather', 'Wrong driving range booked'."""
         self.click(L.reason_by_name % name)
         self.capture_step("dr_cancel_pick_reason", f"Selected reason '{name}'")
 
@@ -56,7 +42,6 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
 
     # ================= refund destination =================
     def tap_select_bank(self):
-        """Open the Select bank dialog."""
         self.click(L.button_select_bank)
         self.capture_step("dr_cancel_select_bank", "Tapped Select Bank")
 
@@ -76,7 +61,6 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
         return self.scroll_and_find(L.value_total_refunded).get_attribute("content-desc") or ""
 
     def get_refund_process_note(self) -> str:
-        """e.g. 'Refund process will take up to 3 business days'."""
         el = self.find_anywhere(L.label_refund_process)
         return "" if el is None else (el.get_attribute("content-desc") or "")
 
@@ -99,7 +83,6 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
         self.capture_step("dr_cancel_confirm_enabled", "Confirm & cancel is enabled")
 
     def tap_confirm_cancel(self):
-        """Tap 'Confirm & cancel' -> opens the confirm dialog."""
         self.click(L.button_confirm_cancel)
         self.capture_step("dr_cancel_confirm", "Tapped Confirm & cancel")
 
@@ -113,7 +96,6 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
         self.capture_step("dr_cancel_dialog", "Confirm cancel dialog is visible")
 
     def dialog_confirm(self):
-        """Confirm on the 'Confirm cancel booking?' dialog."""
         self.click(L.dialog_button_confirm)
         self.capture_step("dr_cancel_dialog_confirm", "Tapped Confirm cancellation (dialog)")
 

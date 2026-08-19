@@ -1,15 +1,3 @@
-"""
-Driving Range Booking summary page object (Android).
-
-A read-only summary of a booking: range name, the summary rows (player, date,
-booking time, duration, bays, bay type), reservation notes, terms & conditions
-(with a Show more/less toggle) and a time-based price breakdown.
-
-Flutter app — values surface through ``content-desc``. Summary rows are a label
-View next to a value View (read via the label's sibling); price rows are a
-single View whose content-desc "\\n"-joins the label and amount(s).
-XPaths come from locators/driving_range/booking_summary_locators.py.
-"""
 import re
 
 from core.android_base_page import AndroidBasePage
@@ -36,15 +24,12 @@ class DrivingRangeBookingSummaryPage(AndroidBasePage):
 
     # ================= readers =================
     def _value(self, label: str) -> str:
-        """A summary value read from its label's sibling, scrolled into view."""
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def _row(self, label: str) -> str:
-        """A price row's full content-desc (label + amount), scrolled in."""
         return self.scroll_and_find(L.price_row_by_label % label).get_attribute("content-desc") or ""
 
     def _read(self, getter) -> str:
-        """Run a getter, returning "" when the row isn't on screen."""
         try:
             return getter()
         except Exception:
@@ -69,17 +54,13 @@ class DrivingRangeBookingSummaryPage(AndroidBasePage):
         return self._value("Bay type")
 
     def get_notes(self) -> str:
-        """Reservation notes, e.g. 'No reservation notes'."""
         return self._value("Notes to driving range")
 
     def get_terms(self) -> str:
-        """The terms & conditions body text (collapsed unless 'Show more' tapped)."""
         return self._value("Terms & conditions")
 
     # ================= price details =================
     def _last_amount(self, label: str) -> str:
-        """The last Rp amount in a price row (the charged value, e.g. after a
-        struck-through fee: 'Processing fee\\nRp. 10,000\\nRp. 0' -> 'Rp. 0')."""
         amounts = _amounts(self._row(label))
         return amounts[-1] if amounts else ""
 
@@ -91,8 +72,6 @@ class DrivingRangeBookingSummaryPage(AndroidBasePage):
 
     # ================= summary snapshot =================
     def get_summary(self) -> dict:
-        """Snapshot every booking field on this screen. Keys match the booking
-        confirmation / success / details summaries so screens can be compared."""
         self.scroll_to_top()
         summary = {
             "player_name": self._read(self.get_player_name),

@@ -1,10 +1,3 @@
-"""
-Golf course details page object (Android) — Tee Time.
-
-Opened from the Explore course card. Per-screen STEPS only (actions +
-verifications), each recording evidence with capture_step. XPaths come from
-locators/tee_time/golf_course_details_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.golf_course_details_locators import GolfCourseDetailsLocators as L
 
@@ -35,12 +28,10 @@ class GolfCourseDetailsPage(AndroidBasePage):
         self.capture_step("open_calendar", "Opened the date calendar")
 
     def select_date_in_calendar(self, date_text: str):
-        """Click a day inside the opened calendar, e.g. '29'."""
         self.click(L.button_date_in_calender % date_text)
         self.capture_step("calendar_date", f"Picked date '{date_text}' in calendar")
 
     def select_date(self, date_text: str):
-        """Pick a date from the inline date strip, e.g. '28 Jul'."""
         self.click(L.date_by_text % date_text)
         self.capture_step("select_date", f"Selected date '{date_text}'")
 
@@ -68,7 +59,6 @@ class GolfCourseDetailsPage(AndroidBasePage):
         self.capture_step("amenities_section", "Amenities section is visible")
 
     def verify_amenity(self, name: str):
-        """Assert a specific amenity tile is present, e.g. 'Shoe rental'."""
         assert self.is_visible(L.amenity_by_name % name), f"Amenity '{name}' not shown"
         self.capture_step("amenity", f"Amenity shown: {name}")
 
@@ -87,12 +77,10 @@ class GolfCourseDetailsPage(AndroidBasePage):
         self.capture_step("more_info_section", "More information section is visible")
 
     def get_stat(self, label: str) -> str:
-        """Read a course stat's full content-desc by its label, e.g. 'Holes'."""
         return self.find(L.stat_by_label % label).get_attribute("content-desc") or ""
 
     # ================= book =================
     def get_booking_summary(self) -> str:
-        """Read the selected-slot summary, e.g. 'Rp. ... / pax\n29 Jul • 11:30 - 12:00'."""
         return self.find(L.label_booking_summary).get_attribute("content-desc") or ""
 
     def verify_slot_selected(self):

@@ -14,6 +14,10 @@ from pages.tee_time.promo_page import PromoPage
 from pages.tee_time.switch_group_booking_page import SwitchGroupBookingPage
 from pages.tee_time.swing_credits_earnings_page import SwingCreditsEarningsPage
 
+# What the promo row on the booking confirmation reads when no promo is on the
+# player — i.e. the placeholder, not a promo name.
+NO_PROMO_LABEL = "Apply a promo"
+
 
 class TeeTimeFlow(BaseFlow):
     def __init__(self, driver, reporter=None):
@@ -74,23 +78,40 @@ class TeeTimeFlow(BaseFlow):
         self.player.fill_manually(first_name, last_name, phone, email)
         self.player.tap_save_player()
 
+    @staticmethod
+    def display_name(player: dict) -> str:
+        """How a player row shows up on the booking confirmation: the friend's
+        name for a searched player, 'First Last' for a manual one."""
+        if player.get("method") == "search":
+            return player["name"]
+        return f'{player["first_name"]} {player["last_name"]}'
+
+    def display_names(self, players: list[dict]) -> list[str]:
+        """The display names of a whole player list, in order."""
+        return [self.display_name(p) for p in players]
+
+    def add_player(self, player: dict) -> str:
+        """Add one player and verify the card appeared, returning its display
+        name. Leaves the promo alone — see add_players() for the looped version
+        that settles each player's promo too."""
+        name = self.display_name(player)
+        if player.get("method") == "search":
+            self.search_and_add_player(name)
+        else:
+            self.add_player_manually(
+                player["first_name"],
+                player["last_name"],
+                player["phone"],
+                player.get("email"),
+            )
+        # keep a standard booking if adding a player prompts to switch to group
+        self.handle_switch_group_prompt(switch=False)
+        self.verify_player_added(name)   # verify the player was added
+        return name
+
     def add_players(self, players: list[dict]):
         for player in players:
-            method = player.get("method", "manual")
-            if method == "search":
-                name = player["name"]
-                self.search_and_add_player(name)
-            else:
-                name = f'{player["first_name"]} {player["last_name"]}'
-                self.add_player_manually(
-                    player["first_name"],
-                    player["last_name"],
-                    player["phone"],
-                    player.get("email"),
-                )
-            # keep a standard booking if adding a player prompts to switch to group
-            self.handle_switch_group_prompt(switch=False)
-            self.verify_player_added(name)   # verify each player was added
+            name = self.add_player(player)
             # promo per player: apply the given one, or drop any auto-applied one.
             self.apply_or_remove_promo(name, player.get("promo"))
 
@@ -144,12 +165,27 @@ class TeeTimeFlow(BaseFlow):
             self.promo.search_promo(promo_name)
             self.promo.apply_promo(promo_name)
     
-    def remove_promo(self, player_name: str):
+    def change_promo_with_add_promo_code(self, player_name: str, promo_name: str, promo_code: str):
         promo_auto_applied = self.booking_confirmation.get_promo_auto_applied(player_name)
-        if promo_auto_applied != "Apply a promo":
+        if promo_auto_applied != NO_PROMO_LABEL:
             self.booking_confirmation.open_promo(player_name)
             self.promo.verify_screen()
             self.promo.remove_promo()
+        else:
+            self.booking_confirmation.open_promo(player_name)
+            self.promo.verify_screen()
+        self.promo.add_promo_code(promo_code)
+        self.promo.search_promo(promo_name)
+        self.promo.apply_promo(promo_name)
+        
+    
+    def remove_promo(self, player_name: str):
+        promo_auto_applied = self.booking_confirmation.get_promo_auto_applied(player_name)
+        if promo_auto_applied != NO_PROMO_LABEL:
+            self.booking_confirmation.open_promo(player_name)
+            self.promo.verify_screen()
+            self.promo.remove_promo()
+            self.promo.tap_back()
 
     def add_promo_code(self, player_name: str, code: str):
         self.booking_confirmation.open_promo(player_name)
@@ -157,20 +193,40 @@ class TeeTimeFlow(BaseFlow):
         self.promo.add_promo_code(code)
 
     def verify_auto_applied_promo(self, player_name: str) -> str:
-        """Assert a promo is auto-applied to a player's card and return it."""
         promo = (self.booking_confirmation.get_promo_auto_applied(player_name) or "").strip()
         print(promo)
         assert promo, f"No promo auto-applied for '{player_name}'"
+        assert promo != NO_PROMO_LABEL, f"No promo auto-applied for '{player_name}'"
         self.booking_confirmation.capture_step(
             "verify_auto_promo", f"Auto-applied promo for {player_name}: {promo}"
+        )
+        return promo
+
+    def verify_promo_applied(self, player_name: str, promo_name: str) -> str:
+        """The promo row for this player now reads the promo we expect — use it
+        after change_promo() to prove the change landed."""
+        promo = (self.booking_confirmation.get_promo_auto_applied(player_name) or "").strip()
+        assert promo_name in promo, \
+            f"Promo for '{player_name}' is '{promo}', expected '{promo_name}'"
+        self.booking_confirmation.capture_step(
+            "verify_promo_applied", f"Promo on {player_name}: {promo}"
+        )
+        return promo
+
+    def verify_promo_removed(self, player_name: str) -> str:
+        """The promo row is back to the placeholder — use it after
+        remove_promo() to prove nothing is applied to this player."""
+        promo = (self.booking_confirmation.get_promo_auto_applied(player_name) or "").strip()
+        assert promo == NO_PROMO_LABEL, \
+            f"Promo for '{player_name}' is still '{promo}', expected '{NO_PROMO_LABEL}'"
+        self.booking_confirmation.capture_step(
+            "verify_promo_removed", f"No promo on {player_name}: {promo}"
         )
         return promo
 
     # --- verify: pre-payment booking confirmation screen ---
     def verify_booking_confirmation(self, date: str | None = None, session: str | None = None,
                                     preferred_time: str | None = None):
-        """Assert the booking confirmation screen is shown and (optionally) that
-        its summary matches the expected date / session / preferred time."""
         self.booking_confirmation.verify_screen()
         self.booking_confirmation.verify_booking_details(
             date=date, session=session, preferred_time=preferred_time
@@ -187,7 +243,6 @@ class TeeTimeFlow(BaseFlow):
 
     # --- pay ---
     def pay_now(self):
-        """Pay the tee-time booking from the booking confirmation."""
         assert self.booking_confirmation.is_pay_now_enabled(), "Pay now is disabled"
         self.booking_confirmation.tap_pay_now()
 
@@ -196,9 +251,6 @@ class TeeTimeFlow(BaseFlow):
                                  session: str | None = None, preferred_time: str | None = None,
                                  no_of_players=None, total: str | None = None,
                                  payment_method: str | None = None) -> str:
-        """Assert the confirmed ('You're confirmed!') screen and its summary.
-        Only non-None fields are asserted; a booking id is always required.
-        Returns the booking id."""
         self.confirmed.verify_screen()
         return self.confirmed.verify_confirmed_details(
             course_name=course_name, date=date, session=session,
@@ -207,11 +259,9 @@ class TeeTimeFlow(BaseFlow):
         )
 
     def finish_confirmed_booking(self):
-        """Tap Finish on the confirmed screen."""
         self.confirmed.tap_finish()
 
     def open_confirmed_booking_details(self):
-        """Tap 'See booking details' on the confirmed screen -> Booking details."""
         self.confirmed.tap_see_booking_details()
         self.booking_details.verify_screen()
 
@@ -220,8 +270,6 @@ class TeeTimeFlow(BaseFlow):
                                       session: str | None = None, preferred_time: str | None = None,
                                       no_of_players=None, total_payment: str | None = None,
                                       booking_id: str | None = None) -> str:
-        """Assert the Booking details screen and its summary. Only non-None fields
-        are asserted; a booking id is always required. Returns the booking id."""
         self.booking_details.verify_screen()
         return self.booking_details.verify_details(
             status=status, date=date, session=session, preferred_time=preferred_time,
@@ -229,7 +277,6 @@ class TeeTimeFlow(BaseFlow):
         )
 
     def open_complete_breakdown(self):
-        """Tap 'See complete breakdown' on the Booking details screen -> Booking summary."""
         self.booking_details.tap_see_complete_breakdown()
         self.booking_summary.verify_screen()
 
@@ -237,19 +284,22 @@ class TeeTimeFlow(BaseFlow):
     def verify_booking_summary(self, course_name: str | None = None, date: str | None = None,
                                session: str | None = None, preferred_time: str | None = None,
                                booking_type: str | None = None, total_payment: str | None = None):
-        """Assert the Booking summary screen and (optionally) its fields."""
         self.booking_summary.verify_screen()
         self.booking_summary.verify_summary_details(
             course_name=course_name, date=date, session=session, preferred_time=preferred_time,
             booking_type=booking_type, total_payment=total_payment,
         )
+    
+    def go_back_to_booking_details(self):
+        self.booking_summary.tap_back()
+    
+    def go_back_to_activity(self):
+        self.booking_details.tap_back()
 
     def verify_player_in_summary(self, player_name: str):
-        """Assert a player's card is shown on the Booking summary screen."""
         self.booking_summary.verify_player_summary(player_name)
 
     def open_receipt(self):
-        """Tap 'See receipt' on the Booking details screen -> Receipt."""
         self.booking_details.tap_see_receipt()
         self.receipt.verify_screen()
 
@@ -258,8 +308,6 @@ class TeeTimeFlow(BaseFlow):
                        date: str | None = None, session: str | None = None,
                        preferred_time: str | None = None, no_of_players=None,
                        total: str | None = None, payment_method: str | None = None) -> str:
-        """Assert the Receipt screen and (optionally) its fields. Only non-None
-        args are asserted; a receipt id is always required. Returns the receipt id."""
         self.receipt.verify_screen()
         return self.receipt.verify_receipt_details(
             course_name=course_name, booking_id=booking_id, date=date, session=session,
@@ -268,22 +316,16 @@ class TeeTimeFlow(BaseFlow):
         )
 
     def send_receipt(self):
-        """Tap 'Send receipt' on the Receipt screen."""
         self.receipt.tap_send_receipt()
 
     def contact_support(self):
-        """Tap 'Contact Swing support' on the Receipt screen."""
         self.receipt.tap_contact_support()
 
     # --- credits ---
     def get_total_credits(self) -> str:
-        """The total Swing Credits earned shown on the booking confirmation bar,
-        e.g. '+ 100,000 (for all)'."""
         return self.booking_confirmation.get_credits_earned()
 
     def get_player_credits(self, player_name: str) -> str:
-        """Open the Swing Credits earnings dialog, read a player's credits (e.g.
-        '+50,000'), then close it."""
         self.booking_confirmation.open_credits_earnings()
         self.credits.verify_screen()
         amount = self.credits.get_player_credit(player_name)

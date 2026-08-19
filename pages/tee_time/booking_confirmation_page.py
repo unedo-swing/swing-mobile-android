@@ -1,10 +1,3 @@
-"""
-Booking confirmation page object (Android) — Tee Time.
-
-Opened after choosing a booking method. Holds the per-screen STEPS and a few
-readers for the money/summary values. XPaths come from
-locators/tee_time/booking_confirmation_locators.py.
-"""
 import re
 
 from core.android_base_page import AndroidBasePage
@@ -12,12 +5,10 @@ from locators.tee_time.booking_confirmation_locators import BookingConfirmationL
 
 
 def _amounts(text: str) -> list[str]:
-    """All 'Rp. <number>' amounts found in a string, in order."""
     return re.findall(r"Rp\.\s?[\d.,]+", text or "")
 
 
 def _value_after_label(text: str) -> str:
-    """For a '<Label>\\n<value>' content-desc, return the value (after newline)."""
     return text.split("\n", 1)[1].strip() if "\n" in (text or "") else (text or "")
 
 
@@ -46,7 +37,6 @@ class BookingConfirmationPage(AndroidBasePage):
 
     def verify_booking_details(self, date: str | None = None, session: str | None = None,
                                preferred_time: str | None = None):
-        """Assert the summary matches the expected date / session / preferred time."""
         actual_date = self.get_date()
         actual_session = self.get_session()
         actual_time = self.get_preferred_time()
@@ -119,17 +109,14 @@ class BookingConfirmationPage(AndroidBasePage):
 
     # ---- money readers ----
     def get_total_payment(self) -> str:
-        """Total payment amount, e.g. 'Rp. 1,000,000'."""
         amounts = _amounts(self._desc(L.label_total_payment))
         return amounts[-1] if amounts else ""
 
     def get_player_payment(self, name: str) -> str:
-        """The amount charged to a given host/player card, e.g. 'Rp. 500,000'."""
         amounts = _amounts(self._desc(L.player_card_by_name % name))
         return amounts[-1] if amounts else ""
 
     def get_price_breakdown(self, name: str) -> str:
-        """The full Price-details line for a player (publish rate, promo, net)."""
         return self._desc(L.price_line_by_name % name)
 
     def get_processing_fee(self) -> str:
@@ -137,15 +124,11 @@ class BookingConfirmationPage(AndroidBasePage):
         return amounts[-1] if amounts else "Rp. 0"
 
     def get_credits_earned(self) -> str:
-        """Swing Credits earned shown on the bottom bar, e.g. '+ 100,000 (for all)'.
-        Returns '' if no credits bar is shown (e.g. no promo applies) — the bar
-        is optional, so this never raises."""
         if not self.is_visible_after_scroll(L.label_credits_earned, timeout=3):
             return ""
         return self._desc(L.label_credits_earned)
 
     def get_selected_payment(self) -> str:
-        """The chosen payment method's name, e.g. 'OVO' (empty if none picked)."""
         if not self.is_visible_after_scroll(L.label_selected_payment, timeout=3):
             return ""
         return self._desc(L.label_selected_payment)
@@ -156,7 +139,6 @@ class BookingConfirmationPage(AndroidBasePage):
 
     # ================= action steps =================
     def open_credits_earnings(self):
-        """Tap the credits-earned bar to open the 'Swing Credits earnings' dialog."""
         self.click(L.label_credits_earned)
         self.capture_step("open_credits", "Opened Swing Credits earnings")
 

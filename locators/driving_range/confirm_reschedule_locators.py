@@ -1,16 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Confirm reschedule screen.
-
-Opened from a booking's 'Reschedule booking'. Shows the booking summary, the
-original vs new date & time, a reschedule-reason radio list, the reschedule
-details (fee, price difference, policy note), the payment method and a
-'Confirm reschedule & pay' action (disabled until a reason is chosen).
-
-Flutter app — values surface through ``content-desc``. Summary rows are a label
-View next to a value View (read via the label's following sibling).
-"""
-
-
 class DrivingRangeConfirmRescheduleLocators:
     # ================= header =================
     label_title = '//android.view.View[@content-desc="Confirm reschedule"]'

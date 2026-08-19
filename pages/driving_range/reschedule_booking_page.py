@@ -1,14 +1,3 @@
-"""
-Driving Range Reschedule booking page object (Android).
-
-Opened from Change Booking > 'Continue reschedule'. Pick a new date & time
-(keeping the same duration / bays / bay type). Shows the original booking
-summary, a day grid, a time-slot grid, then 'Confirm new date & time'
-(disabled until a date + time are chosen).
-
-Flutter app — values surface through ``content-desc``.
-XPaths come from locators/driving_range/reschedule_booking_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.reschedule_booking_locators import RescheduleBookingLocators as L
 
@@ -39,11 +28,9 @@ class DrivingRangeRescheduleBookingPage(AndroidBasePage):
         return self._desc(L.value_bay_type)
 
     def get_constraint_note(self) -> str:
-        """e.g. 'You can only reschedule by maintaining the same duration, ...'."""
         return self._desc(L.label_description_reschedule)
 
     def get_week_range(self) -> str:
-        """e.g. '03 Aug - 09 Aug'."""
         el = self.find_anywhere(L.label_week_range)
         return "" if el is None else (el.get_attribute("content-desc") or "")
 
@@ -79,13 +66,11 @@ class DrivingRangeRescheduleBookingPage(AndroidBasePage):
         self.capture_step("dr_reschedule_confirm_enabled", "Confirm new date & time is enabled")
 
     def tap_confirm_new_date(self):
-        """Confirm the new date & time -> Confirm reschedule screen."""
         self.click(L.button_confirm_new_date)
         self.capture_step("dr_reschedule_confirm_date", "Tapped Confirm new date & time")
 
     # ================= scenario =================
     def pick_new_slot(self, day, time_text: str):
-        """Select a day + time slot and confirm."""
         self.select_date(day)
         self.select_time(time_text)
         self.verify_confirm_enabled()

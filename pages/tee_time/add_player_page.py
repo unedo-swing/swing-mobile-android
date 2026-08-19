@@ -1,11 +1,3 @@
-"""
-Add a player page object (Android) — Tee Time.
-
-Opened from "Add a player" on the booking confirmation. Two tabs: search an
-existing friend, or add one manually via a form. Per-screen STEPS only, each
-recording evidence with capture_step. XPaths come from
-locators/tee_time/add_player_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.add_player_locators import AddPlayerLocators as L
 
@@ -65,7 +57,6 @@ class AddPlayerPage(AndroidBasePage):
         self.capture_step("player_email", f"Entered email '{email}'")
 
     def fill_manually(self, first_name: str, last_name: str, phone: str, email: str | None = None):
-        """Fill the manual-add form from test data."""
         self.enter_first_name(first_name)
         self.enter_last_name(last_name)
         self.enter_phone(phone)

@@ -1,13 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Booking success ("You're
-confirmed!") screen.
-
-Shown after Pay now completes. Each summary row is a label View next to a value
-View (not "\n"-joined), so values are read via the label's following sibling.
-Flutter app — elements surface through ``content-desc``.
-"""
-
-
 class DrivingRangeBookingSuccessLocators:
     # apostrophe-free substring for "You're confirmed!"
     label_confirmed = '//android.view.View[contains(@content-desc,"confirmed")]'

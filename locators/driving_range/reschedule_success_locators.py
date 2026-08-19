@@ -1,15 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Booking rescheduled screen.
-
-The success screen shown after confirming a reschedule. Shows the range/booking,
-the original vs new date & time, the total, payment method, and Finish /
-See booking details actions.
-
-Flutter app — values surface through ``content-desc``. The Total / Payment rows
-are a label View next to a value View (read via the label's following sibling).
-"""
-
-
 class DrivingRangeRescheduleSuccessLocators:
     # ================= header =================
     label_title = '//android.view.View[@content-desc="Booking rescheduled"]'

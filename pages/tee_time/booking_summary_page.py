@@ -1,11 +1,3 @@
-"""
-Booking summary page object (Android) — Tee Time.
-
-Opened from "See complete breakdown" on the Booking details screen. A single long
-scrollable page: booking identity/summary, players list, notes, terms, and the
-full price breakdown. Holds the verify step + readers. XPaths come from
-locators/tee_time/booking_summary_locators.py.
-"""
 import re
 
 from core.android_base_page import AndroidBasePage
@@ -13,7 +5,6 @@ from locators.tee_time.booking_summary_locators import BookingSummaryLocators as
 
 
 def _amounts(text: str) -> list[str]:
-    """All 'Rp. <number>' amounts found in a string, in order."""
     return re.findall(r"Rp\.\s?[\d.,]+", text or "")
 
 
@@ -45,7 +36,6 @@ class BookingSummaryPage(AndroidBasePage):
         return self._desc(L.value_preferred_time)
 
     def get_booking_type(self) -> str:
-        """e.g. 'Standard booking' or 'Group booking'."""
         return self._desc(L.label_booking_type)
 
     # ---- players summary ----
@@ -55,13 +45,11 @@ class BookingSummaryPage(AndroidBasePage):
         self.capture_step("verify_player_summary", f"Player shown: {name}")
 
     def get_player_summary_amount(self, name: str) -> str:
-        """The amount on a player's summary card, e.g. 'Rp. 500,000'."""
         amounts = _amounts(self._desc(L.player_card_by_name % name))
         return amounts[-1] if amounts else ""
 
     # ---- notes ----
     def get_notes(self) -> str:
-        """The reservation notes value, e.g. 'No reservation notes'."""
         return self._desc(L.value_notes)
 
     # ---- terms & conditions ----
@@ -74,7 +62,6 @@ class BookingSummaryPage(AndroidBasePage):
 
     # ---- price details ----
     def get_price_breakdown(self, name: str) -> str:
-        """The full price-details line for a player (published rate, promo, net)."""
         return self._desc(L.price_line_by_name % name)
 
     def get_processing_fee(self) -> str:
@@ -90,8 +77,6 @@ class BookingSummaryPage(AndroidBasePage):
                                session: str | None = None, preferred_time: str | None = None,
                                booking_type: str | None = None,
                                total_payment: str | None = None):
-        """Assert the booking summary screen and (optionally) that its fields
-        match the expected values. Only non-None args are asserted."""
         assert self.is_visible(L.label_title, timeout=20), "Booking summary screen not shown"
         if course_name is not None:
             self.verify_course_name(course_name)

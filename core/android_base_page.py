@@ -19,7 +19,7 @@ class AndroidBasePage(BasePage):
     # Scroll-into-view, then click
     # ------------------------------------------------------------------ #
     # Swipe speed in pixels/second — lower is slower (Appium default is ~5000).
-    SCROLL_SPEED = 700
+    SCROLL_SPEED = 500
     # Pause after each swipe so the momentum scroll finishes before we check /
     # click. Raise it if a click still lands mid-scroll.
     SCROLL_SETTLE = 0.8
@@ -52,12 +52,72 @@ class AndroidBasePage(BasePage):
         )
         time.sleep(self.SCROLL_SETTLE)
 
+    # ------------------------------------------------------------------ #
+    # Horizontal carousels
+    # ------------------------------------------------------------------ #
+    def _swipe_in_element(self, locator, direction: str, percent: float = 0.8):
+        """Swipe *inside* one element instead of across the whole screen.
+
+        Carousels (promos, images, date strip) scroll horizontally within their
+        own bounds; a full-width gesture would drag the page behind them, so the
+        gesture is bound to the element via ``elementId``.
+        """
+        element = self.scroll_and_find(locator)
+        self.driver.execute_script(
+            "mobile: swipeGesture",
+            {
+                "elementId": element.id,
+                "direction": direction, "percent": percent,
+                "speed": self.SCROLL_SPEED,
+            },
+        )
+        time.sleep(self.SCROLL_SETTLE)
+
+    def swipe_left_in(self, locator, percent: float = 0.8):
+        """Advance a carousel one page (finger moves left, later items arrive)."""
+        self._swipe_in_element(locator, "left", percent)
+
+    def swipe_right_in(self, locator, percent: float = 0.8):
+        """Go back one page in a carousel."""
+        self._swipe_in_element(locator, "right", percent)
+
+    def swipe_left_to_element(self, locator, container, max_swipes: int = 5) -> bool:
+        """Swipe ``container`` left until ``locator`` shows up. True when found.
+
+        Stops early once the container stops changing, so a carousel already at
+        its end doesn't burn every swipe.
+        """
+        if self.is_visible(locator, timeout=1, log=False):
+            return True
+        for _ in range(max_swipes):
+            before = self.driver.page_source
+            self.swipe_left_in(container)
+            if self.is_visible(locator, timeout=1, log=False):
+                return True
+            if self.driver.page_source == before:
+                break
+        return False
+
     def scroll_to_top(self, max_swipes: int = 3):
         for _ in range(max_swipes):
             before = self.driver.page_source
             self._swipe_down()
             if self.driver.page_source == before:
                 break
+        
+    def scroll_up_to_element(self, locator, max_swipes: int = 10):
+        by, value = self._resolve(locator)
+        self.driver.implicitly_wait(0)
+        try:
+            for _ in range(max_swipes):
+                els = self.driver.find_elements(by, value)
+                if els:
+                    return els[0]
+                self._swipe_down()
+                self.wait_for(1)
+            return None
+        finally:
+            self.driver.implicitly_wait(settings.IMPLICIT_WAIT)
 
     def scroll_to_element(self, locator, max_swipes: int = 10):
         by, value = self._resolve(locator)
@@ -77,15 +137,6 @@ class AndroidBasePage(BasePage):
         super().click(locator)
 
     def find_anywhere(self, locator, max_swipes: int = 10):
-        """Locate an element anywhere on a scrollable screen, whatever the
-        current scroll position. Returns None when it really isn't there.
-
-        ``scroll_to_element`` only swipes up, so it can't reach a row we have
-        already scrolled past — which happens whenever a caller reads several
-        fields down a long screen. Searching downward from here first keeps the
-        common case at zero extra swipes; only a miss pays for the trip back to
-        the top and a second pass.
-        """
         element = self.scroll_to_element(locator, max_swipes)
         if element is None:
             self.scroll_to_top()
@@ -93,24 +144,11 @@ class AndroidBasePage(BasePage):
         return element
 
     def is_visible_after_scroll(self, locator, timeout: int = 5) -> bool:
-        """``is_visible`` that swipes first.
-
-        The base check only sees the current viewport, so a row that is simply
-        below the fold reads as missing — unlike ``click``, which scrolls. Use
-        this for verify steps; keep plain ``is_visible`` for negative checks,
-        where the swipe search would burn ~10 swipes before returning False.
-        """
         if self.find_anywhere(locator) is None:
             return False
         return self.is_visible(locator, timeout)
 
     def scroll_and_find(self, locator):
-        """Swipe the element into view, then return it.
-
-        Flutter builds lazily, so a widget off-screen is usually absent from
-        the accessibility tree entirely and a plain ``find`` would time out.
-        Falls back to ``find`` so the caller still gets the normal error.
-        """
         element = self.find_anywhere(locator)
         return element if element is not None else self.find(locator)
 
@@ -166,6 +204,30 @@ class AndroidBasePage(BasePage):
             self.driver.execute_script("mobile: performEditorAction", {"action": "search"})
         except Exception:
             self.driver.press_keycode(66)  # KEYCODE_ENTER as a fallback
+
+    def slide_to_end(self, track_locator, thumb_locator=None):
+        """Drag a slide-to-confirm control's thumb from left to right.
+
+        These controls ignore a tap — only a drag commits — so ``click`` on
+        them silently does nothing. The drag ends half a thumb-width inside the
+        right edge: releasing exactly on the boundary sometimes lands outside
+        the track and the thumb springs back.
+
+        ``thumb_locator`` defaults to the track's own ImageView child, which is
+        how the Swing Pass sliders are built.
+        """
+        track = self.scroll_and_find(track_locator)
+        thumb = self.find(thumb_locator or f"{track_locator}/android.widget.ImageView")
+        track_box, thumb_box = track.rect, thumb.rect
+        start_x = thumb_box["x"] + thumb_box["width"] // 2
+        end_x = track_box["x"] + track_box["width"] - thumb_box["width"] // 2
+        y = thumb_box["y"] + thumb_box["height"] // 2
+        self.driver.execute_script(
+            "mobile: dragGesture",
+            {"startX": start_x, "startY": y, "endX": end_x, "endY": y,
+             "speed": self.SCROLL_SPEED},
+        )
+        time.sleep(self.SCROLL_SETTLE)
 
     def scroll_to_text(self, text: str):
         """Scroll a scrollable container until an element with ``text`` shows."""

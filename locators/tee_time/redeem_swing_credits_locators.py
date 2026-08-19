@@ -1,11 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > Redeem Swing Credits bottom sheet.
-
-Opened from the "Redeem Swing Credits" row on the booking confirmation screen.
-Flutter app — elements surface through ``content-desc`` / ``hint``.
-"""
-
-
 class RedeemSwingCreditsLocators:
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'
     # title is a View; the confirm button below is a Button with the same label.

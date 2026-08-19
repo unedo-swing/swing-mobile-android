@@ -1,10 +1,3 @@
-"""
-Receipt page object (Android) — Tee Time.
-
-Opened from "See receipt" on the Booking details screen. Holds the verify step
-+ readers for the summary values, plus the support and footer actions. XPaths
-come from locators/tee_time/receipt_locators.py.
-"""
 import re
 
 from core.android_base_page import AndroidBasePage
@@ -12,7 +5,6 @@ from locators.tee_time.receipt_locators import ReceiptLocators as L
 
 
 def _amount(text: str) -> str:
-    """The 'Rp. <number>' amount in a string, or '' if none."""
     m = re.search(r"Rp\.\s?[\d.,]+", text or "")
     return m.group(0) if m else ""
 
@@ -29,12 +21,10 @@ class ReceiptPage(AndroidBasePage):
 
     # ---- readers ----
     def get_receipt_id(self) -> str:
-        """The receipt reference, e.g. 'MU6NP' (from 'Receipt #MU6NP')."""
         text = self._desc(L.label_title)
         return text.split("#", 1)[1].strip() if "#" in text else text.strip()
 
     def get_booking_id(self) -> str:
-        """The booking reference, e.g. 'HEPJB' (from 'Booking #HEPJB')."""
         text = self._desc(L.label_booking_id)
         return text.split("#", 1)[1].strip() if "#" in text else text.strip()
 
@@ -48,19 +38,15 @@ class ReceiptPage(AndroidBasePage):
         return self._desc(L.value_preferred_time)
 
     def get_no_of_players(self) -> str:
-        """e.g. '4 players'."""
         return self._desc(L.value_no_of_players)
 
     def get_total(self) -> str:
-        """Total amount, e.g. 'Rp. 3,000,000'."""
         return _amount(self._desc(L.value_total))
 
     def get_payment_method(self) -> str:
-        """The payment method used, e.g. 'OVO'."""
         return self._desc(L.value_payment_method)
 
     def get_credits_earned(self) -> str:
-        """Swing Credits earned, e.g. '+ 260,000 (for all)'."""
         return self._desc(L.value_credits_earned)
 
     # ---- combined verify ----
@@ -68,9 +54,6 @@ class ReceiptPage(AndroidBasePage):
                                date: str | None = None, session: str | None = None,
                                preferred_time: str | None = None, no_of_players=None,
                                total: str | None = None, payment_method: str | None = None) -> str:
-        """Assert the receipt screen is shown and (optionally) that its fields
-        match the expected values. Only non-None args are asserted. Always
-        asserts a receipt id is present. Returns the receipt id."""
         assert self.is_visible(L.label_title, timeout=20), "Receipt screen not shown"
         if course_name is not None:
             assert self.is_visible(L.label_course_name % course_name), \

@@ -1,16 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Booking summary screen.
-
-A read-only summary of a booking: range name, the summary rows
-(player/date/time/duration/bays/bay type), reservation notes, terms & conditions
-(with a Show more toggle) and a time-based price breakdown.
-
-Flutter app — values surface through ``content-desc``. Summary rows are a label
-View next to a value View (read via the label's following sibling); price rows
-are single Views whose content-desc "\\n"-joins the label and amount(s).
-"""
-
-
 class DrivingRangeBookingSummaryLocators:
     # ================= header =================
     label_title = '//android.view.View[@content-desc="Booking summary"]'

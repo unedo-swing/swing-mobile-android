@@ -1,10 +1,3 @@
-"""
-Add credit card page object (Android) — Tee Time.
-
-Opened from "Add credit card" on the Select payment method sheet. Fields are
-filled from test data passed in by the test — the page never hard-codes card
-details. XPaths come from locators/tee_time/add_credit_card_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.add_credit_card_locators import AddCreditCardLocators as L
 
@@ -37,7 +30,6 @@ class AddCreditCardPage(AndroidBasePage):
         self.capture_step("cvv", "Entered CVV")
 
     def fill_card(self, cardholder: str, number: str, expiry: str, cvv: str):
-        """Fill the whole form from test data in one call."""
         self.enter_cardholder(cardholder)
         self.enter_card_number(number)
         self.enter_expiry(expiry)

@@ -12,8 +12,9 @@ Steps can carry structured data:
                    highlighted in red.
 
 Layout:
-  * Page 1  -> cover: Swing brand + confidentiality notice, TC ID / TC Name,
-               and the run's meta table (test/platform/date/status/steps).
+  * Page 1  -> cover: full-bleed Swing purple with the white logo, the report
+               title, TC ID / TC Name and the run's meta (platform, date,
+               status pill, step count). Drawn straight on the canvas.
   * Page 2+ -> Table of contents: one dotted-leader line per step
                ("Label ....... 3"), the whole line clickable, jumping straight
                to that step's page — real page numbers, computed with a first
@@ -28,6 +29,7 @@ without a PDF.
 """
 import io
 import os
+import tempfile
 from datetime import datetime
 from xml.sax.saxutils import escape
 
@@ -47,6 +49,7 @@ from reportlab.platypus import (
 )
 
 from config import settings
+from utils import allure_reporter
 
 
 # Feature prefixes used in capture_step slugs -> readable labels.
@@ -54,6 +57,21 @@ _FEATURE_PREFIXES = {"dr": "Driving Range", "tt": "Tee Time"}
 
 # Brand line shown on the cover and in every page's footer.
 _CONFIDENTIAL_NOTICE = "Swing — Confidential. For Swing use only."
+
+# --- brand ---------------------------------------------------------------- #
+# Sampled from the app's own launcher icon (assets/swing_rounded_android.png):
+# rgb(92, 0, 230). The tints are that hue lightened for rules and muted labels.
+BRAND_PURPLE = colors.HexColor("#5C00E6")
+BRAND_PURPLE_DARK = colors.HexColor("#3D0099")
+BRAND_TINT = colors.HexColor("#C9A9FF")      # labels on the purple cover
+BRAND_WASH = colors.HexColor("#F3EBFF")      # table header fill on white pages
+
+_ASSETS_DIR = os.path.join(settings.BASE_DIR, "assets")
+# The launcher icon: white wordmark on exactly BRAND_PURPLE, so dropping it on
+# the purple cover reads as the logo floating on the page.
+LOGO_ON_PURPLE = os.path.join(_ASSETS_DIR, "swing_rounded_android.png")
+# Purple wordmark on transparency — for anything on a white background.
+LOGO_ON_WHITE = os.path.join(_ASSETS_DIR, "swing_logo_horizontal.png")
 
 
 def humanize_step(slug: str) -> str:
@@ -151,6 +169,8 @@ class PDFReporter:
             self.tc_id = tc_id
         if tc_name:
             self.tc_name = tc_name
+        # keep the Allure case title in step with the corrected cover page
+        allure_reporter.set_case(self.test_name, tc_id=self.tc_id, tc_name=self.tc_name)
 
     def add_step(self, title: str, description: str = "", screenshot: str | None = None,
                  data: dict | None = None, compare: dict | None = None):
@@ -200,34 +220,33 @@ class PDFReporter:
         # --- pass 1: measure which page each step's bookmark lands on ---
         tracker = _TrackingDocTemplate(io.BytesIO(), **doc_kwargs)
         placeholder_toc = self._toc_elements({}, content_width, placeholder=True)
-        tracker.build(self._cover_elements(status) + placeholder_toc + [PageBreak()] + self._step_elements())
+        tracker.build(self._cover_elements() + placeholder_toc + [PageBreak()] + self._step_elements())
         bookmark_pages = tracker.bookmark_pages
         total_pages = tracker.last_content_page
 
         # --- pass 2: render the final PDF with a real dotted-leader TOC ---
         real_toc = self._toc_elements(bookmark_pages, content_width, placeholder=False)
-        elements = self._cover_elements(status) + real_toc + [PageBreak()] + self._step_elements()
+        elements = self._cover_elements() + real_toc + [PageBreak()] + self._step_elements()
 
         doc = SimpleDocTemplate(path, **doc_kwargs)
-        footer = self._footer_drawer(total_pages)
-        doc.build(elements, onFirstPage=footer, onLaterPages=footer)
+        doc.build(
+            elements,
+            onFirstPage=lambda canv, _doc: self._draw_cover(canv, status),
+            onLaterPages=self._footer_drawer(total_pages),
+        )
         return path
 
     def _build_styles(self, styles) -> dict:
         return {
-            "brand": ParagraphStyle(
-                "Brand", parent=styles["Title"], fontSize=28,
-                textColor=colors.HexColor("#0f6b52"), spaceAfter=2,
+            "toc_title": ParagraphStyle(
+                "TocTitle", parent=styles["Heading2"], spaceBefore=6, spaceAfter=6,
+                textColor=BRAND_PURPLE,
             ),
-            "confidential": ParagraphStyle(
-                "Confidential", parent=styles["Normal"], fontSize=9,
-                textColor=colors.HexColor("#b00020"), spaceAfter=16,
-            ),
-            "title": ParagraphStyle("TitleBig", parent=styles["Title"], fontSize=18, spaceAfter=10),
-            "tc": ParagraphStyle("TcId", parent=styles["Heading2"], fontSize=13, spaceAfter=4),
-            "toc_title": ParagraphStyle("TocTitle", parent=styles["Heading2"], spaceBefore=6, spaceAfter=6),
             "toc": ParagraphStyle("Toc", parent=styles["Normal"], fontSize=10, leading=18),
-            "step_title": ParagraphStyle("StepTitle", parent=styles["Heading3"], spaceBefore=10, spaceAfter=2),
+            "step_title": ParagraphStyle(
+                "StepTitle", parent=styles["Heading3"], spaceBefore=10, spaceAfter=2,
+                textColor=BRAND_PURPLE_DARK,
+            ),
             "caption": ParagraphStyle(
                 "Caption", parent=styles["Normal"], fontSize=9, textColor=colors.grey,
                 alignment=0, spaceBefore=2,
@@ -240,20 +259,150 @@ class PDFReporter:
         }
 
     # ---- cover page ----
-    def _cover_elements(self, status: str) -> list:
-        s = self._styles
-        elements = [
-            Paragraph("Swing", s["brand"]),
-            Paragraph(_CONFIDENTIAL_NOTICE.upper(), s["confidential"]),
-            Paragraph("Test Evidence Report", s["title"]),
-        ]
-        if self.tc_id or self.tc_name:
-            elements.append(Paragraph(f"TC ID: {escape(self.tc_id or '—')}", s["tc"]))
-            elements.append(Paragraph(f"TC Name: {escape(self.tc_name or '—')}", s["tc"]))
-            elements.append(Spacer(1, 0.3 * cm))
-        elements.append(self._meta_table(status))
-        elements.append(PageBreak())
-        return elements
+    def _cover_elements(self) -> list:
+        """The cover is painted on the canvas (see _draw_cover) so the purple
+        can run edge to edge; the story only has to claim the page."""
+        return [Spacer(1, 1), PageBreak()]
+
+    def _draw_cover(self, canv, status: str):
+        page_w, page_h = A4
+        canv.saveState()
+
+        # full-bleed brand purple
+        canv.setFillColor(BRAND_PURPLE)
+        canv.rect(0, 0, page_w, page_h, stroke=0, fill=1)
+
+        # the launcher icon sits on the same purple, so what shows is the mark
+        top = page_h - 4.2 * cm
+        if os.path.exists(LOGO_ON_PURPLE):
+            size = 4.6 * cm
+            canv.drawImage(LOGO_ON_PURPLE, 2.2 * cm, top - size + 1.1 * cm,
+                           width=size, height=size, mask="auto")
+            top -= size - 0.6 * cm
+        else:  # asset missing — fall back to the wordmark as type
+            canv.setFillColor(colors.white)
+            canv.setFont("Helvetica-Bold", 34)
+            canv.drawString(2.2 * cm, top, "swing")
+            top -= 1.4 * cm
+
+        # title
+        canv.setFillColor(colors.white)
+        canv.setFont("Helvetica-Bold", 30)
+        canv.drawString(2.2 * cm, top, "Test Evidence Report")
+
+        canv.setFillColor(BRAND_TINT)
+        canv.setFont("Helvetica", 11)
+        canv.drawString(2.2 * cm, top - 0.85 * cm, _CONFIDENTIAL_NOTICE.upper())
+
+        # thin rule under the header
+        canv.setStrokeColor(BRAND_TINT)
+        canv.setLineWidth(0.7)
+        canv.line(2.2 * cm, top - 1.6 * cm, page_w - 2.2 * cm, top - 1.6 * cm)
+
+        # test case, big and unmissable
+        y = top - 3.0 * cm
+        if self.tc_id:
+            canv.setFillColor(colors.white)
+            canv.setFont("Helvetica-Bold", 20)
+            canv.drawString(2.2 * cm, y, self.tc_id)
+            y -= 1.0 * cm
+        if self.tc_name:
+            canv.setFillColor(colors.white)
+            canv.setFont("Helvetica", 14)
+            for line in self._wrap_cover_text(self.tc_name, "Helvetica", 14,
+                                              page_w - 4.4 * cm):
+                canv.drawString(2.2 * cm, y, line)
+                y -= 0.7 * cm
+
+        # result, right under the case it belongs to
+        self._draw_status_pill(canv, 2.2 * cm, y - 0.5 * cm, status)
+
+        # meta block, anchored to the foot of the page so the cover reads as
+        # header at the top / details at the bottom instead of drifting
+        inner = page_w - 4.4 * cm
+        y = 7.4 * cm
+        canv.setStrokeColor(BRAND_PURPLE_DARK)
+        canv.setLineWidth(0.7)
+        canv.line(2.2 * cm, y + 1.0 * cm, page_w - 2.2 * cm, y + 1.0 * cm)
+
+        # the pytest node id gets a full-width row of its own; the short fields
+        # share the row below it
+        self._draw_meta_field(canv, 2.2 * cm, y, "TEST", self.test_name, inner)
+        y -= 2.0 * cm
+        for index, (label, value) in enumerate((
+            ("PLATFORM", self.platform),
+            ("DATE", self.started_at.strftime("%Y-%m-%d %H:%M:%S")),
+            ("STEPS", str(len(self.steps))),
+        )):
+            column = inner / 3
+            self._draw_meta_field(canv, 2.2 * cm + index * column, y, label, value,
+                                  column - 0.6 * cm)
+
+        # footer band
+        canv.setFillColor(BRAND_PURPLE_DARK)
+        canv.rect(0, 0, page_w, 1.6 * cm, stroke=0, fill=1)
+        canv.setFillColor(BRAND_TINT)
+        canv.setFont("Helvetica", 8)
+        canv.drawString(2.2 * cm, 0.62 * cm, _CONFIDENTIAL_NOTICE)
+        canv.drawRightString(page_w - 2.2 * cm, 0.62 * cm, "Page 1")
+        canv.restoreState()
+
+    @classmethod
+    def _draw_meta_field(cls, canv, x: float, y: float, label: str, value, width: float):
+        """One 'LABEL / value' pair of the cover's meta block."""
+        canv.setFillColor(BRAND_TINT)
+        canv.setFont("Helvetica", 8)
+        canv.drawString(x, y, label)
+        canv.setFillColor(colors.white)
+        canv.setFont("Helvetica", 11)
+        for line_no, line in enumerate(
+            cls._wrap_cover_text(str(value), "Helvetica", 11, width)[:2]
+        ):
+            canv.drawString(x, y - 0.55 * cm - line_no * 0.5 * cm, line)
+
+    @staticmethod
+    def _draw_status_pill(canv, x: float, y: float, status: str):
+        """PASS / FAIL as a rounded pill — the one thing a reader looks for."""
+        label = (status or "N/A").upper()
+        fill = {"PASS": colors.HexColor("#0FA958"), "FAIL": colors.HexColor("#E5484D")}.get(
+            label, colors.HexColor("#6B7280")
+        )
+        text_w = stringWidth(label, "Helvetica-Bold", 12)
+        width, height = text_w + 1.6 * cm, 0.95 * cm
+        canv.setFillColor(fill)
+        canv.roundRect(x, y - height, width, height, height / 2, stroke=0, fill=1)
+        canv.setFillColor(colors.white)
+        canv.setFont("Helvetica-Bold", 12)
+        canv.drawCentredString(x + width / 2, y - height + 0.31 * cm, label)
+
+    @staticmethod
+    def _wrap_cover_text(text: str, font: str, size: float, max_width: float) -> list:
+        """Greedy word wrap — the cover draws with the canvas, which has no
+        paragraph flowing of its own. A single token too wide to fit (a pytest
+        node id, say) is broken mid-word rather than left to run off the page."""
+        lines, current = [], ""
+
+        def too_wide(candidate: str) -> bool:
+            return stringWidth(candidate, font, size) > max_width
+
+        for word in str(text).split():
+            candidate = f"{current} {word}".strip()
+            if not too_wide(candidate):
+                current = candidate
+                continue
+            if current:
+                lines.append(current)
+                current = ""
+            while too_wide(word):
+                cut = len(word)
+                while cut > 1 and too_wide(word[:cut]):
+                    cut -= 1
+                lines.append(word[:cut])
+                word = word[cut:]
+            current = word
+        if current:
+            lines.append(current)
+        return lines or [""]
 
     # ---- table of contents ----
     # Reserve room for the frame's own internal padding (reportlab subtracts a
@@ -295,7 +444,7 @@ class PDFReporter:
         remaining = available_width - label_w - page_w
         n_dots = max(3, int(remaining / dot_w))
         dots = "." * n_dots
-        return f'<a href="#{bookmark}" color="blue">{label} {dots} {page_str}</a>'
+        return f'<a href="#{bookmark}" color="#5C00E6">{label} {dots} {page_str}</a>'
 
     # ---- steps ----
     def _step_elements(self) -> list:
@@ -326,43 +475,27 @@ class PDFReporter:
             elements.append(Spacer(1, 0.4 * cm))
         return elements
 
-    @staticmethod
-    def _footer_drawer(total_pages: int):
-        """Returns an onFirstPage/onLaterPages callback drawing the
-        confidentiality footer + "Page X of Y" on every page."""
+    def _footer_drawer(self, total_pages: int):
+        """Returns an onLaterPages callback: a purple hairline, the Swing
+        wordmark, the confidentiality line and "Page X of Y"."""
         def _draw(canv, doc):
             canv.saveState()
+            page_w, _ = A4
+            canv.setStrokeColor(BRAND_PURPLE)
+            canv.setLineWidth(0.7)
+            canv.line(1.5 * cm, 1.45 * cm, page_w - 1.5 * cm, 1.45 * cm)
+            if os.path.exists(LOGO_ON_WHITE):
+                width = 1.9 * cm
+                canv.drawImage(LOGO_ON_WHITE, 1.5 * cm, 0.85 * cm, width=width,
+                               height=width * 64 / 214, mask="auto")
             canv.setFont("Helvetica", 8)
             canv.setFillColor(colors.grey)
-            page_w, _ = A4
             canv.drawCentredString(page_w / 2, 1.0 * cm, _CONFIDENTIAL_NOTICE)
+            canv.setFillColor(BRAND_PURPLE)
             canv.drawRightString(page_w - 1.5 * cm, 1.0 * cm,
                                  f"Page {canv.getPageNumber()} of {total_pages}")
             canv.restoreState()
         return _draw
-
-    def _meta_table(self, status: str) -> Table:
-        status_color = colors.green if status.upper() == "PASS" else (
-            colors.red if status.upper() == "FAIL" else colors.grey
-        )
-        meta = Table(
-            [
-                ["Test", self.test_name],
-                ["Platform", self.platform],
-                ["Date", self.started_at.strftime("%Y-%m-%d %H:%M:%S")],
-                ["Status", status or "N/A"],
-                ["Steps", str(len(self.steps))],
-            ],
-            colWidths=[3 * cm, 12 * cm],
-        )
-        meta.setStyle(TableStyle([
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
-            ("TEXTCOLOR", (0, 0), (0, -1), colors.grey),
-            ("TEXTCOLOR", (1, 3), (1, 3), status_color),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("LINEBELOW", (0, -1), (-1, -1), 0.5, colors.lightgrey),
-        ]))
-        return meta
 
     def _step_body(self, step: dict, caption_style):
         """Pick how a step's data renders: compare table > data table >
@@ -387,8 +520,8 @@ class PDFReporter:
         rows += [[self._p(k, bold=True), self._p(v)] for k, v in data.items()]
         table = Table(rows, colWidths=[5 * cm, 12.5 * cm], hAlign="LEFT")
         table.setStyle(TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.lightgrey),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eeeeee")),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DCCBFF")),
+            ("BACKGROUND", (0, 0), (-1, 0), BRAND_WASH),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -411,8 +544,8 @@ class PDFReporter:
 
         table = Table(rows, colWidths=[4 * cm, 6.75 * cm, 6.75 * cm], hAlign="LEFT")
         style = [
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.lightgrey),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eeeeee")),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DCCBFF")),
+            ("BACKGROUND", (0, 0), (-1, 0), BRAND_WASH),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -438,32 +571,123 @@ class PDFReporter:
 
 # --------------------------------------------------------------------------- #
 # Callable helpers — use these in a test to run WITH or WITHOUT a PDF.
+#
+# The intended shape of a test is:
+#
+#     def test_something(self, login_flow):
+#         pdf = init_pdf("test_something")   # first line
+#         login_flow.open_login()            # ... steps ...
+#         generate_pdf(pdf)                  # after the last step
+#
+# ``init_pdf`` attaches the reporter to every flow the test asked for as a
+# fixture, so the test never wires it by hand: the flow fixtures in conftest.py
+# register their flows here (``register_flow``) while they are being built,
+# which happens before the test body runs.
 # --------------------------------------------------------------------------- #
+
+# Flows built for the CURRENT test, waiting for a reporter. Cleared per test by
+# the pdf_evidence fixture in conftest.py.
+_registered_flows: list = []
+
+# The reporter the current test opened, and whether it has been written out —
+# lets conftest write a FAIL report for a test that blew up before reaching its
+# own generate_pdf() line.
+_active: dict = {}
+
+
+def register_flow(flow):
+    """Remember a flow so the test's ``init_pdf()`` can attach the reporter to
+    it. Returns the flow, so a fixture reads ``return register_flow(Flow(...))``."""
+    _registered_flows.append(flow)
+    return flow
+
+
+def reset_evidence():
+    """Forget the previous test's flows and reporter. Called once per test."""
+    _registered_flows.clear()
+    _active.clear()
+
+
+def active_reporter() -> "PDFReporter | None":
+    """The reporter opened by the current test (None when there is none, or
+    when PDF evidence is off)."""
+    return _active.get("reporter")
+
+
+def evidence_written() -> bool:
+    """True once ``generate_pdf`` has run for the current test's reporter."""
+    return bool(_active.get("generated"))
+
+
+def active_pdf_path() -> str | None:
+    """Path of the PDF written for the current test, if one was written."""
+    return _active.get("path")
+
+
 def init_pdf(test_name: str, enabled: bool | None = None,
              tc_id: str | None = None, tc_name: str | None = None) -> "PDFReporter | None":
-    """
-    Create a PDFReporter, or return None when PDF evidence is off.
-
-    ``enabled`` defaults to ``settings.PDF_EVIDENCE`` (env var / --pdf flag), so:
-        pdf = init_pdf("test_login")        # None unless evidence is enabled
-        pdf = init_pdf("test_login", True)  # force a PDF for this test
-    Pass ``tc_id``/``tc_name`` when you already know them (otherwise tc_id is
-    guessed from a parametrized test name and can be corrected later via
-    ``reporter.set_test_case(...)``). Pass the result into the page objects.
-    When it is None, capture_step still screenshots but no PDF is produced.
-    """
     if enabled is None:
         enabled = settings.PDF_EVIDENCE
-    return PDFReporter(test_name, settings.PLATFORM, tc_id=tc_id, tc_name=tc_name) if enabled else None
+    allure_reporter.set_case(test_name, tc_id=tc_id, tc_name=tc_name)
+    reporter = (
+        PDFReporter(test_name, settings.PLATFORM, tc_id=tc_id, tc_name=tc_name)
+        if enabled else None
+    )
+    for flow in _registered_flows:
+        flow.use_reporter(reporter)
+    _active.update(reporter=reporter, path=None, generated=False)
+    return reporter
+
+
+def allure_only() -> bool:
+    """True when the PDF belongs in the Allure report and nowhere else.
+
+    PDF_OUTPUT=allure asks for that, but only a run that really is writing
+    Allure results can honour it — otherwise the PDF would have no home at all,
+    so it falls back to a file in reports/.
+    """
+    return settings.PDF_OUTPUT == "allure" and allure_reporter.active()
+
+
+def _staging_dir() -> str:
+    """Where an Allure-only PDF is built before being attached and deleted.
+    Kept out of reports/ so a half-written file never looks like evidence."""
+    path = os.path.join(tempfile.gettempdir(), "swing-pdf-evidence")
+    os.makedirs(path, exist_ok=True)
+    return path
 
 
 def generate_pdf(reporter: "PDFReporter | None", status: str = "PASS") -> str | None:
     """
-    Build the PDF from a reporter. No-op (returns None) when reporter is None,
-    so the same call works whether or not evidence was enabled.
+    Build the PDF from a reporter — call it after the test's last step. No-op
+    (returns None) when reporter is None, so the same call works whether or not
+    evidence was enabled.
+
+    With PDF_OUTPUT=allure the file is built in a staging directory; conftest
+    attaches it to the Allure case and then ``discard_staged`` removes it.
     """
+    if _active.get("reporter") is reporter:
+        _active["generated"] = True
     if reporter is None:
         return None
-    path = reporter.generate(status=status)
-    print(f"\n[evidence] PDF written to: {path}")
+    staged = allure_only()
+    path = reporter.generate(status=status, output_dir=_staging_dir() if staged else None)
+    if _active.get("reporter") is reporter:
+        _active["path"] = path
+    print(f"\n[evidence] PDF {'attached to the Allure case' if staged else 'written to'}: {path}")
     return path
+
+
+def discard_staged(path: str | None) -> str | None:
+    """Delete an Allure-only PDF once it has been attached, and return what to
+    show as its location ("" for a kept file — the caller keeps the path)."""
+    if not path or not allure_only():
+        return path
+    try:
+        os.remove(path)
+    except OSError:
+        return path
+    if _active.get("path") == path:
+        _active["path"] = None
+    results = allure_reporter.results_dir() or "the Allure results"
+    return f"attached to the Allure case ({results})"

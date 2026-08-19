@@ -1,5 +1,6 @@
 from core.android_base_page import AndroidBasePage
 from locators.login_locators import LoginLocators as L
+import re
 import time
 
 
@@ -58,9 +59,29 @@ class LoginPage(AndroidBasePage):
         self.capture_step("continue_tapped", "Tapped Continue")
 
     def open_country_picker(self):
-        """Tap the Country selector to open the country-code picker screen."""
         self.click(L.button_country_code)
         self.capture_step("country_picker_opened", "Opened country picker")
+
+    def read_dial_code(self) -> str:
+        """The dial code of the country now selected: 'ID (+62)' -> '+62'.
+
+        Read off the login screen instead of being carried in test data, so the
+        OTP request always uses the code the app itself is about to use.
+        Returns "" when the button can't be read — the caller falls back to
+        SWING_DIAL_CODE.
+        """
+        for locator in (L.label_country_code, L.button_country_code):
+            try:
+                raw = self.get_text(locator)
+            except Exception:
+                continue
+            match = re.search(r"\+\s*(\d+)", raw or "")
+            if match:
+                code = f"+{match.group(1)}"
+                self.capture_step("dial_code", f"Country code on the login screen: {code}")
+                return code
+        self.capture_step("dial_code_unread", "Could not read the country code from the screen")
+        return ""
 
     def choose_sms(self):
         self.click(L.button_verification_sms)
@@ -71,7 +92,7 @@ class LoginPage(AndroidBasePage):
         self.capture_step("chose_whatsapp", "Chose WhatsApp verification")
 
     def enter_code(self, code: str):
-        
+        time.sleep(3)
         field = self.wait_visible(L.input_verification_code)
         field.click()
         for ch in code.strip():

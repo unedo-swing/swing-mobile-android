@@ -1,16 +1,3 @@
-"""
-Driving Range flow — composes the driving-range booking screens into scenarios.
-
-Starts from the Home screen (already logged in) and drives:
-  Home > select region > Driving range
-  > Explore: search + open a range
-  > details: date / bay / time / duration
-  > Book > How many bays > Confirm
-  > Booking confirmation (add-ons, promo, payment)
-
-The promo picker and payment-method sheet are the same screens as tee time, so
-their pages are reused.
-"""
 import re
 
 from flows.base_flow import BaseFlow
@@ -18,7 +5,10 @@ from pages.home_page import HomePage
 from pages.driving_range.explore_page import DrivingRangeExplorePage
 from pages.driving_range.details_page import DrivingRangeDetailsPage
 from pages.driving_range.select_bays_page import SelectBaysPage
-from pages.driving_range.booking_confirmation_page import DrivingRangeBookingConfirmationPage
+from pages.driving_range.booking_confirmation_page import (
+    NO_PROMO_LABEL,
+    DrivingRangeBookingConfirmationPage,
+)
 from pages.driving_range.booking_success_page import DrivingRangeBookingSuccessPage
 from pages.driving_range.booking_details_page import DrivingRangeBookingDetailsPage
 from pages.activity_page import ActivityPage
@@ -33,6 +23,7 @@ from pages.driving_range.cancellation_details_page import DrivingRangeCancellati
 from pages.tee_time.promo_page import PromoPage
 from pages.tee_time.payment_method_page import PaymentMethodPage
 from pages.tee_time.swing_credits_earnings_page import SwingCreditsEarningsPage
+from pages.featured_promos_page import FeaturedPromosPage
 
 
 # --- booking-confirmation vs confirmed-booking comparison -------------------
@@ -41,6 +32,9 @@ from pages.tee_time.swing_credits_earnings_page import SwingCreditsEarningsPage
 # what it actually means rather than on the raw string.
 _NUMBER_FIELDS = ("duration", "bays")
 _AMOUNT_FIELDS = ("total",)
+# promo and credits are only broken out on the confirmation screen, so there is
+# nothing on the confirmed booking to compare them against
+_CONFIRMATION_ONLY_FIELDS = ("promo", "credits_used", "credits_earned")
 
 
 def _norm(value: str) -> str:
@@ -57,9 +51,6 @@ def _first_number(value: str) -> str:
 
 
 def _card_date(date_text: str) -> str:
-    """Convert a booking date like '11 August 2026' to the Activity card form
-    '11 Aug 2026' (abbreviated month, no leading zero). If it's already in that
-    form (or unparseable), it's returned unchanged."""
     from datetime import datetime
     for fmt in ("%d %B %Y", "%d %b %Y"):
         try:
@@ -71,9 +62,6 @@ def _card_date(date_text: str) -> str:
 
 
 def _duration_label(start: str, end: str) -> str:
-    """Expected booking duration from a time slot, matching how select_time books
-    slots: each hour start..end is one 60-min slot, and start == end is a single
-    60-min slot. So 18:00-18:00 -> '60 min', 17:00-19:00 -> '120 min'."""
     from datetime import datetime
     fmt = "%H:%M"
     delta = datetime.strptime(end.strip(), fmt) - datetime.strptime(start.strip(), fmt)
@@ -84,8 +72,6 @@ def _duration_label(start: str, end: str) -> str:
 
 
 def _same(field: str, before: str, after: str) -> bool:
-    """Compare one field. An empty value never matches — a row we failed to
-    read is a mismatch to report, not a silent pass."""
     if field in _NUMBER_FIELDS:
         left, right = _first_number(before), _first_number(after)
     elif field in _AMOUNT_FIELDS:
@@ -96,12 +82,11 @@ def _same(field: str, before: str, after: str) -> bool:
 
 
 def compare_booking(before: dict, after: dict) -> dict:
-    """Return {field: (confirmation_value, confirmed_value)} for every field
-    that doesn't match. Empty dict means the two screens agree."""
     return {
         field: (before.get(field, ""), after.get(field, ""))
         for field in before
-        if not _same(field, before.get(field, ""), after.get(field, ""))
+        if field not in _CONFIRMATION_ONLY_FIELDS
+        and not _same(field, before.get(field, ""), after.get(field, ""))
     }
 
 
@@ -124,9 +109,10 @@ class DrivingRangeFlow(BaseFlow):
         self.select_bank = self.page(SelectBankPage)
         self.cancel_success = self.page(DrivingRangeCancelSuccessPage)
         self.cancellation_details = self.page(DrivingRangeCancellationDetailsPage)
-        self.promo = self.page(PromoPage)               # reused from tee_time
-        self.payment_method = self.page(PaymentMethodPage)  # reused from tee_time
-        self.credits = self.page(SwingCreditsEarningsPage)  # reused from tee_time
+        self.promo = self.page(PromoPage)               
+        self.payment_method = self.page(PaymentMethodPage)  
+        self.credits = self.page(SwingCreditsEarningsPage)
+        self.featured_promos = self.page(FeaturedPromosPage)  
 
     # --- steps ---
     def select_region(self, region: str):
@@ -144,6 +130,22 @@ class DrivingRangeFlow(BaseFlow):
         self.explore.open_range(range_name)
         self.details.verify_screen()
         self.details.verify_range_name(range_name)
+    
+    def verify_featured_promo(self):
+        self.details.tap_see_all_promo()
+        self.featured_promos.verify_auto_claim_banner()
+        self.featured_promos.get_promo_names()
+        self.featured_promos.tap_back()
+    
+    def verify_maximum_bays(self, bays: str):
+        self.details.tap_book()
+        self.bays.verify_screen()
+        self.bays.set_bays(bays)
+        self.bays.verify_max_bays(bays)
+    
+    def verify_minimum_balls(self, addons: list[dict]):
+        self.add_addons(addons)
+        self.booking_confirmation.verify_minimum_balls()
 
     def select_schedule(self, name: str, date: str, bay_name: str,
                         time_start: str, time_end: str):
@@ -151,7 +153,6 @@ class DrivingRangeFlow(BaseFlow):
         self.details.verify_slots_loaded()
         self.details.select_bay_tab(bay_name)
         self.details.verify_slots_loaded()
-        # each 60-min slot from start up to end is clicked (duration = # of slots)
         self.details.select_time(time_start, time_end)
         self.details.verify_book_enabled()
 
@@ -165,7 +166,6 @@ class DrivingRangeFlow(BaseFlow):
 
     def verify_booking_confirmation_details(self, date: str, time_start: str,
                                             time_end: str, bays: int, bay_type: str):
-        """Assert the booking-confirmation summary echoes what was selected."""
         self.booking_confirmation.verify_booking_details(
             date=date, booking_time=time_start,
             duration=_duration_label(time_start, time_end),
@@ -173,10 +173,16 @@ class DrivingRangeFlow(BaseFlow):
         )
 
     # --- booking confirmation actions ---
-    def add_addon(self, name: str, quantity: int = 1):
-        self.booking_confirmation.verify_addons_section()
-        self.booking_confirmation.verify_addon(name)
-        self.booking_confirmation.increment_addon(name, quantity)
+    def add_addons(self, addons: list[dict]):
+        if addons:
+            for addon in addons:
+                name = addon["add_ons_name"]
+                quantity = addon["add_ons_qty"]
+                self.booking_confirmation.verify_addon(name)
+                self.booking_confirmation.set_addon_qty(name, quantity)
+    
+    def switch_on_swing_credits(self):
+        self.booking_confirmation.toggle_swing_credits()
 
     def pay_now(self):
         self.booking_confirmation.verify_pay_now_enabled()
@@ -214,8 +220,6 @@ class DrivingRangeFlow(BaseFlow):
 
     # --- booking details (after "See booking details") ---
     def open_booking_details(self):
-        """From the 'You're confirmed!' success screen, tap 'See booking details'
-        and land on the Booking details screen."""
         self.success.tap_see_booking_details()
         self.booking_details.verify_screen()
 
@@ -223,20 +227,17 @@ class DrivingRangeFlow(BaseFlow):
                                booking_time: str | None = None, duration: str | None = None,
                                bays: str | None = None, bay_type: str | None = None,
                                total: str | None = None):
-        """Verify the Booking details screen — booking id, the summary rows
-        (date / booking time / duration / number of bays / bay type) and the
-        payment-summary total."""
         self.booking_details.verify_screen()
         self.booking_details.verify_booking_id()
         self.booking_details.verify_booking_summary(
             booking_id=booking_id, date=date, booking_time=booking_time,
             duration=duration, bays=bays, bay_type=bay_type, total=total,
         )
+    
+    def go_back_to_activity(self):
+        self.booking_details.tap_back()
 
     def open_and_verify_booking_details(self, confirmed: dict) -> dict:
-        """Click 'See booking details', then assert the details screen repeats
-        the confirmed booking (id, date, time, duration, bays, bay type, total).
-        Returns the Booking details summary."""
         self.open_booking_details()
         self.verify_booking_details(
             booking_id=confirmed.get("booking_id"),
@@ -253,7 +254,6 @@ class DrivingRangeFlow(BaseFlow):
                          booking_time: str | None = None, duration: str | None = None,
                          bays: str | None = None, bay_type: str | None = None,
                          total: str | None = None, payment_method: str | None = None):
-        """Check every field on the 'You're confirmed!' success screen."""
         self.success.verify_screen()
         assert self.success.get_booking_id().startswith("Booking #"), "Booking id not shown"
         if range_name:
@@ -264,8 +264,6 @@ class DrivingRangeFlow(BaseFlow):
         )
 
     def get_credits_earned(self) -> str:
-        """Open the Swing Credits earnings dialog, read the player's credits,
-        then close it."""
         self.booking_confirmation.open_credits_earnings()
         self.credits.verify_screen()
         amount = self.credits.get_player_credit(self.booking_confirmation.get_player_name())
@@ -292,15 +290,39 @@ class DrivingRangeFlow(BaseFlow):
             self.promo.verify_screen()
             self.promo.apply_promo(promo_name)
             self.booking_confirmation.verify_screen()   # wait for return
+        
+    def change_promo_with_add_promo_code(self, promo_name: str, promo_code: str):
+        applied_promo = self.booking_confirmation.verify_promo_auto_applied()
+        if applied_promo != NO_PROMO_LABEL:
+            self.booking_confirmation.open_promo()
+            self.promo.verify_screen()
+            self.promo.remove_promo()
+        else:
+            self.booking_confirmation.open_promo()
+            self.promo.verify_screen()
+        self.promo.add_promo_code(promo_code)
+        self.promo.search_promo(promo_name)
+        self.promo.apply_promo(promo_name)
 
     def remove_promo(self):
         applied_promo = self.booking_confirmation.verify_promo_auto_applied()
-        if applied_promo != "Apply promo":
+        if applied_promo != NO_PROMO_LABEL:
             self.booking_confirmation.open_promo()
             self.promo.verify_screen()
             self.promo.remove_promo()
             self.promo.tap_back()
             self.booking_confirmation.verify_screen()   # wait for return
+
+    def verify_bxgy_promo(self, promo_name: str, ball_option: str, ball_qty: int,
+                          bonus_balls: str, total: str | None = None):
+        self.booking_confirmation.verify_balls_section()
+        self.booking_confirmation.set_addon_qty(ball_option, ball_qty)
+        self.apply_promo(promo_name)
+        self.booking_confirmation.verify_price_details_type("Ball-based")
+        self.booking_confirmation.verify_bxgy_promo(
+            promo_name=promo_name, ball_option=ball_option,
+            bonus_balls=bonus_balls, total=total,
+        )
 
     def verify_promo_auto_applied(self, promo_name: str):
         self.booking_confirmation.open_promo()
@@ -334,13 +356,10 @@ class DrivingRangeFlow(BaseFlow):
     # end-to-end wrapper).
     # ========================================================================
     def open_activity(self):
-        """Home > Activity."""
         self.home.go_to_activity()
         self.activity.verify_screen()
 
     def open_driving_range_card(self, name: str, time_start: str, booking_date: str):
-        """Filter Activity to Driving range, open a booking card (matched by
-        name + time + date) -> Booking details."""
         self.activity.click_filter_activity("Driving range")
         # the card shows the date abbreviated ("11 Aug 2026"), the data is full
         # month ("11 August 2026") -> convert for the contains-match
@@ -351,13 +370,11 @@ class DrivingRangeFlow(BaseFlow):
     # Reschedule — one function per step.
     # ========================================================================
     def open_reschedule(self):
-        """Booking details ⋮ > Reschedule booking -> Change Booking."""
         self.booking_details.tap_three_dots()
         self.booking_details.tap_reschedule_booking()
         self.change_booking.verify_screen()
 
     def continue_reschedule(self):
-        """Change Booking (Reschedule tab) > Continue reschedule -> Reschedule booking."""
         self.change_booking.select_reschedule_tab()
         self.change_booking.tap_continue_reschedule()
         self.reschedule_booking.verify_screen()
@@ -370,14 +387,12 @@ class DrivingRangeFlow(BaseFlow):
         self.confirm_reschedule.verify_screen()
 
     def confirm_reschedule_reason(self, reason: str):
-        """Pick a reschedule reason and tap Confirm & pay -> confirm dialog."""
         self.confirm_reschedule.select_reason(reason)
         self.confirm_reschedule.verify_confirm_enabled()
         self.confirm_reschedule.tap_confirm_pay()
         self.confirm_reschedule.verify_confirm_dialog()
 
     def submit_reschedule(self):
-        """Confirm on the dialog -> Booking rescheduled success."""
         self.confirm_reschedule.dialog_confirm()
         self.reschedule_success.verify_screen()
 
@@ -391,13 +406,11 @@ class DrivingRangeFlow(BaseFlow):
     # Cancellation — one function per step.
     # ========================================================================
     def open_cancellation(self):
-        """Booking details ⋮ > Cancel booking -> Change Booking."""
         self.booking_details.tap_three_dots()
         self.booking_details.tap_cancel_booking()
         self.change_booking.verify_screen()
 
     def continue_cancellation(self):
-        """Change Booking (Cancellation tab) > Continue cancel -> Confirm cancellation."""
         self.change_booking.select_cancellation_tab()
         self.change_booking.tap_continue_cancel()
         self.confirm_cancellation.verify_screen()
@@ -417,13 +430,11 @@ class DrivingRangeFlow(BaseFlow):
         self.confirm_cancellation.hide_keyboard()
 
     def submit_cancellation(self):
-        """Tap Confirm & cancel -> confirm dialog."""
         self.confirm_cancellation.verify_confirm_enabled()
         self.confirm_cancellation.tap_confirm_cancel()
         self.confirm_cancellation.verify_confirm_dialog()
 
     def confirm_cancellation_dialog(self):
-        """Confirm on the dialog -> Booking cancelled success."""
         self.confirm_cancellation.dialog_confirm()
         self.cancel_success.verify_screen()
 
@@ -434,6 +445,5 @@ class DrivingRangeFlow(BaseFlow):
             self.cancel_success.verify_range_name(range_name)
 
     def open_cancellation_details(self):
-        """Booking cancelled > See cancellation details -> Cancellation details."""
         self.cancel_success.tap_see_cancellation_details()
         self.cancellation_details.verify_screen()

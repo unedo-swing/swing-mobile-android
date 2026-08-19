@@ -1,14 +1,3 @@
-"""
-Driving Range Cancellation details page object (Android).
-
-Opened from the Booking cancelled screen ('See cancellation details') or My
-Bookings. Read-only: booking summary, cancellation reason, refund destination
-(bank account) and the refund breakdown.
-
-Flutter app — values surface through ``content-desc``. Rows are a label View
-next to a value View (read via the label's sibling).
-XPaths come from locators/driving_range/cancellation_details_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.cancellation_details_locators import (
     CancellationDetailsLocators as L,
@@ -32,7 +21,6 @@ class DrivingRangeCancellationDetailsPage(AndroidBasePage):
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
     def get_booking_id(self) -> str:
-        """e.g. '#GSHRC'."""
         return self._value("Booking ID")
 
     def get_cancellation_date_time(self) -> str:

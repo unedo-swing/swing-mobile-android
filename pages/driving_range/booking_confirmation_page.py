@@ -6,8 +6,25 @@ from locators.driving_range.booking_confirmation_locators import (
 )
 
 
+_BONUS_BALLS = re.compile(r"\+\s*([\d.,]+)\s*balls", re.IGNORECASE)
+
+
 def _amounts(text: str) -> list[str]:
     return re.findall(r"Rp\.\s?[\d.,]+", text or "")
+
+
+def _bonus_balls(text: str) -> str:
+    """Pull "100" out of a BXGY bonus line such as "+ 100 balls" / "+ 100 balls (max)"."""
+    match = _BONUS_BALLS.search(text or "")
+    return match.group(1) if match else ""
+
+
+# the promo row reads this when nothing is applied
+NO_PROMO_LABEL = "Apply a promo"
+
+# promo and credits only show up when they apply, so an empty one is left out
+# of the summary entirely rather than reported as a blank field
+_OPTIONAL_SUMMARY_FIELDS = ("promo", "credits_used", "credits_earned")
 
 
 def _value_after_label(text: str) -> str:
@@ -41,11 +58,6 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         return self.scroll_and_find(locator).get_attribute("content-desc") or ""
 
     def _read(self, getter) -> str:
-        """Run a getter, returning "" when the row isn't on screen.
-
-        A missing row must not blow up mid-snapshot — get_summary() collects
-        every field first so the comparison can report all of them at once.
-        """
         try:
             return getter()
         except Exception:
@@ -88,9 +100,43 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         if bay_type is not None:
             assert bay_type in self.get_bay_type()
 
+    # ================= price details =================
+    def get_price_details_type(self) -> str:
+        """"Time-based" or "Ball-based", from the "Price details (…)" header."""
+        header = self._desc(L.label_price_details)
+        match = re.search(r"\(([^)]+)\)", header)
+        return match.group(1).strip() if match else ""
+
+    def verify_price_details_type(self, expected: str):
+        actual = self.get_price_details_type()
+        assert actual.casefold() == expected.strip().casefold(), \
+            f"Price details are '{actual}', expected '{expected}'"
+        self.capture_step("dr_price_details_type", f"Price details ({actual})")
+
+    def get_price_row(self, name: str) -> str:
+        """Full breakdown row, e.g. "100 balls x2\\n+ 100 balls (max)\\nRp. 150,000"."""
+        return self._desc(L.price_row_by_name % name).strip()
+
+    def get_price_row_amount(self, name: str) -> str:
+        amounts = _amounts(self.get_price_row(name))
+        return amounts[-1] if amounts else ""
+
+    def get_price_row_bonus_balls(self, name: str) -> str:
+        return _bonus_balls(self.get_price_row(name))
+
+    def get_processing_fee(self) -> str:
+        # "Processing fee\nRp. 10,000\nRp. 0" — the last amount is what is actually charged
+        amounts = _amounts(self._desc(L.label_processing_fee))
+        return amounts[-1] if amounts else ""
+
     def get_total_payment(self) -> str:
         amounts = _amounts(self._desc(L.label_total_payment))
         return amounts[-1] if amounts else ""
+
+    def get_credits_used(self) -> str:
+        if not self.is_visible_after_scroll(L.label_swing_credits_used):
+            return ""
+        return _value_after_label(self._desc(L.label_swing_credits_used))
 
     def get_credits_earned(self) -> str:
         return self._desc(L.label_credits_earned)
@@ -110,8 +156,7 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         return ""
 
     def get_summary(self) -> dict:
-        # start from the top so the fields below read in screen order
-        self.scroll_to_top()
+        self.scroll_up_to_element(L.label_player_name)
         summary = {
             "player_name": self._read(self.get_player_name),
             "date": self._read(self.get_date),
@@ -120,7 +165,14 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
             "bays": self._read(self.get_number_of_bays),
             "bay_type": self._read(self.get_bay_type),
             "total": self._read(self.get_total_payment),
+            "promo": self._read(self.get_promo_name),
+            "credits_used": self._read(self.get_credits_used),
+            "credits_earned": self._read(self.get_credits_earned),
             "payment_method": self._read(self.get_payment_method),
+        }
+        summary = {
+            field: value for field, value in summary.items()
+            if value or field not in _OPTIONAL_SUMMARY_FIELDS
         }
         self.capture_step(
             "dr_confirmation_summary",
@@ -134,14 +186,52 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
             "Rentals/add-ons section not shown"
         self.capture_step("dr_addons", "Rentals/add-ons section is visible")
 
+    def verify_balls_section(self):
+        """Ball-based ranges show "How many balls?" in place of the add-ons section."""
+        assert self.is_visible_after_scroll(L.label_balls, timeout=15), \
+            "'How many balls?' section not shown"
+        self.capture_step("dr_balls", "'How many balls?' section is visible")
+
     def verify_addon(self, name: str):
         assert self.is_visible_after_scroll(L.addon_row_by_name % name), \
             f"Add-on '{name}' not shown"
         self.capture_step("dr_addon_row", f"Add-on shown: {name}")
 
+    def get_addon_qty(self, name: str) -> int:
+        # "10 balls\nRp. 10,000\n1", or with a BXGY bonus line in between:
+        # "100 balls\nRp. 75,000\n+ 100 balls\n2" — the count is the last numeric line.
+        digits = [
+            line.strip()
+            for line in self._desc(L.addon_row_by_name % name).splitlines()
+            if line.strip().isdigit()
+        ]
+        return int(digits[-1]) if digits else 0
+
+    def get_addon_bonus_balls(self, name: str) -> str:
+        """Bonus balls granted by a BXGY promo on the "%s" stepper row ("" when none)."""
+        return _bonus_balls(self._desc(L.addon_row_by_name % name))
+
+    def verify_addon_bonus_balls(self, name: str, bonus: str):
+        actual = self.get_addon_bonus_balls(name)
+        assert actual == str(bonus).strip(), \
+            f"'{name}' shows a bonus of '{actual}' balls, expected '{bonus}'"
+        self.capture_step("dr_addon_bonus", f"'{name}' bonus: + {actual} balls")
+
+    def set_addon_qty(self, name: str, target: int):
+        current = self.get_addon_qty(name)
+        button = L.addon_minus_by_name if target > current else L.addon_plus_by_name
+        for _ in range(abs(target - current)):
+            self.click(button % name)
+            self.wait_for(2)
+        actual = self.get_addon_qty(name)
+        assert actual == target, \
+            f"Add-on '{name}' quantity is {actual}, expected {target}"
+        self.capture_step("dr_addon_qty", f"Add-on '{name}' quantity: {current} -> {target}")
+
     def increment_addon(self, name: str, times: int = 1):
         for _ in range(times):
             self.click(L.addon_plus_by_name % name)
+            self.wait_for(2)
         self.capture_step("dr_addon_plus", f"Incremented '{name}' x{times}")
 
     def decrement_addon(self, name: str, times: int = 1):
@@ -167,19 +257,60 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         self.capture_step("dr_learn_more", "Tapped Learn more")
 
     # ================= promo / credits =================
-    def change_promo(self):
+    def open_promo(self):
         self.click(L.button_change_promo)
         self.capture_step("dr_open_promo", "Opened promo picker")
-    
-    def verify_promo_auto_applied(self):
-        return self.get_text(L.button_change_promo)
-    
+
+    def verify_promo_auto_applied(self) -> str:
+        promo = self._desc(L.button_change_promo).strip()
+        self.capture_step("dr_promo_applied", f"Promo row: {promo or '(empty)'}")
+        return promo
+
+    def get_promo_name(self) -> str:
+        promo = self._desc(L.button_change_promo).strip()
+        return "" if promo == NO_PROMO_LABEL else promo
+
+    def verify_promo_in_price_details(self, promo_name: str):
+        """An applied promo is also listed as its own row inside the price breakdown."""
+        assert self.is_visible_after_scroll(L.price_row_promo_by_name % promo_name), \
+            f"Promo '{promo_name}' is not listed in the price details"
+        self.capture_step("dr_promo_price_row", f"Price details list promo: {promo_name}")
+
+    def verify_bxgy_promo(self, promo_name: str, ball_option: str,
+                          bonus_balls: str, total: str | None = None):
+        """Check a Buy-X-Get-Y promo end to end on this screen: the bonus balls on the
+        stepper row, the same bonus in the price breakdown, the promo row itself, and
+        (optionally) the total it produces."""
+        self.verify_addon_bonus_balls(ball_option, bonus_balls)
+
+        row_bonus = self.get_price_row_bonus_balls(ball_option)
+        assert row_bonus == str(bonus_balls).strip(), (
+            f"Price details show a bonus of '{row_bonus}' balls for '{ball_option}', "
+            f"expected '{bonus_balls}'"
+        )
+
+        applied = self.get_promo_name()
+        assert promo_name in applied, \
+            f"Applied promo is '{applied}', expected '{promo_name}'"
+        self.verify_promo_in_price_details(promo_name)
+
+        actual_total = self.get_total_payment()
+        if total is not None:
+            assert total in actual_total, \
+                f"Total payment is '{actual_total}', expected '{total}'"
+
+        self.capture_step(
+            "dr_bxgy_promo",
+            f"BXGY '{promo_name}': {ball_option} + {bonus_balls} balls | "
+            f"{self.get_price_row(ball_option).replace(chr(10), ' / ')} | "
+            f"Total={actual_total}",
+        )
+
+
     def is_swing_credits_on(self) -> bool:
         return self.find(L.switch_swing_credits).get_attribute("checked") == "true"
 
     def toggle_swing_credits(self):
-        # the Switch bounds cover the card with a "Redeem" child in the middle,
-        # so tap the toggle at the top-right instead of the element centre.
         self.scroll_to_element(L.switch_swing_credits)
         r = self.find(L.switch_swing_credits).rect
         x = r["x"] + r["width"] - max(30, int(r["width"] * 0.08))
@@ -206,3 +337,30 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
     def tap_pay_now(self):
         self.click(L.button_pay_now)
         self.capture_step("dr_pay_now", "Tapped Pay now")
+        
+    
+    def get_minimum_balls_message(self) -> str:
+        if not self.is_visible(L.toaster_minimum_balls, timeout=5, log=False):
+            return ""
+        return self.find(L.toaster_minimum_balls).get_attribute("content-desc") or ""
+
+    def verify_minimum_balls(self, balls: str = "", times: str = "", bays: str = ""):
+        message = self.get_minimum_balls_message()
+        assert message, "Minimum balls toaster not shown"
+        parsed = self.parse_minimum_balls(message)
+        expected = {"balls": balls, "times": times, "bays": bays}
+        mismatches = {
+            field: (want, parsed[field])
+            for field, want in expected.items()
+            if want and str(want).strip() != parsed[field]
+        }
+        assert not mismatches, (
+            "Minimum balls toaster does not match:\n"
+            + "\n".join(
+                f"  {field}: expected '{want}' but toaster reads '{got}'"
+                for field, (want, got) in mismatches.items()
+            )
+            + f"\n  toaster: '{message}'"
+        )
+        self.capture_step("bays_minimum_balls", message, data=parsed)
+        return parsed

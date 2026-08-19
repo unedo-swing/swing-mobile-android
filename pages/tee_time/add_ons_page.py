@@ -1,10 +1,3 @@
-"""
-Select add-ons page object (Android) — Tee Time.
-
-The bottom sheet for adding extras (Stick, Shoes, Coach, ...) to a player, opened
-from the booking confirmation. Per-screen STEPS only, each recording evidence
-with capture_step. XPaths come from locators/tee_time/add_ons_locators.py.
-"""
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.add_ons_locators import AddOnsLocators as L
 
@@ -21,14 +14,12 @@ class AddOnsPage(AndroidBasePage):
         self.capture_step("addon_row", f"Add-on shown: {name}")
 
     def get_addon_count(self, name: str) -> int:
-        """Read the current quantity of an add-on (last line of its content-desc)."""
         desc = self.find(L.addon_row_by_name % name).get_attribute("content-desc") or ""
         last = desc.split("\n")[-1].strip()
         return int(last) if last.isdigit() else 0
 
     # ================= action steps =================
     def increment(self, name: str, times: int = 1):
-        """Tap the + stepper for an add-on ``times`` times, e.g. 'Stick'."""
         for _ in range(times):
             self.click(L.addon_plus_by_name % name)
         self.capture_step("addon_plus", f"Incremented '{name}' x{times}")

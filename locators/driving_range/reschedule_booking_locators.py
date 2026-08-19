@@ -1,14 +1,3 @@
-"""
-Android XPaths for the Swing Driving Range > Reschedule booking screen.
-
-Opened from Change Booking > 'Continue reschedule'. Pick a new date & time
-(keeping the same duration / bays / bay type). Shows the original booking
-summary, a day grid and a time-slot grid, then 'Confirm new date & time'.
-
-Flutter app — values surface through ``content-desc``.
-"""
-
-
 class RescheduleBookingLocators:
     # ================= header =================
     label_reschedule_booking = '//android.view.View[@content-desc="Reschedule booking"]'

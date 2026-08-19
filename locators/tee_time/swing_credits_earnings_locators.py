@@ -1,12 +1,3 @@
-"""
-Android XPaths for the Swing Tee Time > "Swing Credits earnings" dialog.
-
-Opened by tapping the "+ N (for all)" credits bar on the booking confirmation.
-Lists the Swing Credits each player earns. Flutter app — elements surface
-through ``content-desc``.
-"""
-
-
 class SwingCreditsEarningsLocators:
     label_title = '//android.view.View[@content-desc="Swing Credits earnings"]'
     # a player's credit row (content-desc: "<Name>\n• <%> ...\n+<amount>"):
