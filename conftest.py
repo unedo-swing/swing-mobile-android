@@ -29,6 +29,7 @@ from data.driving_range_data import DrivingRangeData
 from flows.login_flow import LoginFlow
 from flows.tee_time_flow import TeeTimeFlow
 from flows.driving_range_flow import DrivingRangeFlow
+from flows.logout_flow import LogoutFlow
 from utils.pdf_reporter import init_pdf, generate_pdf
 
 
@@ -155,6 +156,11 @@ def login_flow(driver, reporter):
 @pytest.fixture
 def tee_time_flow(driver, reporter):
     return TeeTimeFlow(driver, reporter)
+
+
+@pytest.fixture
+def logout_flow(driver):
+    return LogoutFlow(driver)
 
 
 @pytest.fixture

@@ -9,7 +9,8 @@ class TestLogin:
     @pytest.mark.smoke
     def test_login_with_whatsapp(
         self,
-        driver
+        driver,
+        logout_flow
     ):
         pdf = init_pdf("test_login_screen_loads")
         login_flow = LoginFlow(driver, pdf)
@@ -19,5 +20,7 @@ class TestLogin:
         login_flow.tap_continue_method_verify()
         login_flow.select_method_verification_whatsapp()
         login_flow.input_otp()
+        login_flow.popup_reminder_handle()
+        logout_flow.logout()
         generate_pdf(pdf)
     

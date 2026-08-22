@@ -64,3 +64,6 @@ class LoginFlow(BaseFlow):
     def open_course_details(self, name: str):
         self.explore.open_course(name)
         self.course_details.verify_screen()
+
+    def popup_reminder_handle(self):
+        self.home.close_reminder_popup_ifany()

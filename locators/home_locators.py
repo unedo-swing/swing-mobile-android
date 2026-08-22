@@ -68,3 +68,8 @@ class HomeLocators:
     card_leave_rating = '//android.view.View[contains(@content-desc,"Leave a rating")]'
     card_request_venue = '//android.view.View[contains(@content-desc,"Request a golf venue")]'
     card_contact_support = '//android.view.View[contains(@content-desc,"Contact Swing support")]'
+
+    # --- Pop up reminder ---
+    button_do_it_latter = '//*[@content-desc="do it later"]'
+    button_back_reminder_popup = '//*[contains(@content-desc, "What") and contains(@content-desc, "new")]/preceding-sibling::android.widget.ImageView'
+    button_gotit_tutorial = '//android.widget.Button[@content-desc="Got it!"]'
