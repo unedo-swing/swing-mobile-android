@@ -26,11 +26,15 @@ from config import settings
 import config as config_module
 from core.driver_factory import create_driver
 from data.driving_range_data import DrivingRangeData
+from data.events_data import EventsData
 from flows.login_flow import LoginFlow
 from flows.tee_time_flow import TeeTimeFlow
 from flows.driving_range_flow import DrivingRangeFlow
 from flows.logout_flow import LogoutFlow
+from flows.events_flow import EventsFlow
 from utils.pdf_reporter import init_pdf, generate_pdf
+from utils.excel_reader import find_rows
+from data.driving_range_data import _DATA_PATH as _DR_PATH, _SHEET as _DR_SHEET
 
 
 def pytest_addoption(parser):
@@ -66,7 +70,9 @@ def TC_ID(request):
         @pytest.mark.parametrize("TC_ID", ["TC_DR_00002"], indirect=True)
     """
     tc_id = request.param
-    DrivingRangeData.load(tc_id)
+    if find_rows(_DR_PATH, "TC_ID", tc_id, sheet=_DR_SHEET):
+        DrivingRangeData.load(tc_id)   # TC is in the Driving_Range sheet
+    EventsData.load(tc_id)             # TC is in the Events sheet (or empty)
     return tc_id
 
 
@@ -161,6 +167,11 @@ def tee_time_flow(driver, reporter):
 @pytest.fixture
 def logout_flow(driver):
     return LogoutFlow(driver)
+
+
+@pytest.fixture
+def events_flow(driver, reporter):
+    return EventsFlow(driver, reporter)
 
 
 @pytest.fixture
