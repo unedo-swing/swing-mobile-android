@@ -53,6 +53,8 @@ import pytest
 
 from config import settings
 from core.driver_factory import create_driver
+from data.driving_range_data import DrivingRangeData
+from data.events_data import EventsData
 from flows.login_flow import LoginFlow
 from flows.onboarding_flow import OnboardingFlow
 from flows.tee_time_flow import TeeTimeFlow
@@ -68,7 +70,13 @@ from utils.pdf_reporter import (
     generate_pdf,
     register_flow,
     reset_evidence,
+    
 )
+
+from flows.events_flow import EventsFlow
+from utils.pdf_reporter import init_pdf, generate_pdf
+from utils.excel_reader import find_rows
+from data.driving_range_data import _DATA_PATH as _DR_PATH, _SHEET as _DR_SHEET
 
 
 APP_STATES = ("force-stop", "clear", "reinstall")
@@ -520,7 +528,88 @@ def _report_to_clickup(terminalreporter, config, failures):
     })
 
 
-def _write_regression_summary(failures, links=None) -> str:
+@pytest.fixture
+def logout_flow(driver):
+    return LogoutFlow(driver)
+
+
+@pytest.fixture
+def events_flow(driver, reporter):
+    return EventsFlow(driver, reporter)
+
+
+@pytest.fixture
+def driving_range_flow(driver, reporter):
+    return DrivingRangeFlow(driver, reporter)
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    failures = getattr(config, "_regression_failures", [])
+    tr = terminalreporter
+
+    if os.getenv("CLICKUP_SYNC") == "1":
+        try:
+            from utils.clickup_sync import sync_results
+            from config.clickup_map import TC_TO_TASK
+
+            pdf_lines = getattr(config_module, "_clickup_pdf_paths", [])
+
+            results = []
+            for st in ("passed", "failed", "error"):
+                for rep in terminalreporter.stats.get(st, []):
+                    tc = _tc_from_nodeid(rep.nodeid)
+                    err = ""
+                    if st in ("failed", "error") and getattr(rep, "longrepr", None):
+                        crash = getattr(rep.longrepr, "reprcrash", None)
+                        err = (crash.message if crash else str(rep.longrepr) or "").strip().splitlines()[0]
+                    pdf = ""
+
+                    slug = tc
+                    if "::" in rep.nodeid:
+                        slug = rep.nodeid.split("::")[-1]
+                    slug = slug.split("[")[0]
+                    if slug.startswith("test_"):
+                        slug = slug[5:]
+
+                    for p in pdf_lines:
+                        if slug and slug in os.path.basename(p):
+                            pdf = p
+                            break
+
+                    if not pdf and pdf_lines:
+                        pdf = max(pdf_lines, key=lambda x: os.path.getmtime(x))
+                    results.append({
+                        "tc_id": tc,
+                        "nodeid": rep.nodeid,
+                        "status": "PASS" if st == "passed" else "FAIL",
+                        "error": err,
+                        "pdf": pdf,
+                    })
+            sync_results(results, TC_TO_TASK)
+            tr.write_line("[clickup] done sync")
+        except Exception as e:
+            tr.write_line(f"[clickup] failed to sync (skipped)): {e}")
+
+    if not failures:
+        return
+
+    tr.write_sep("=", f"REGRESSION SUMMARY — {len(failures)} FAILED", red=True, bold=True)
+    for f in failures:
+        tr.write_line(f"FAIL  {f['test']}  (in {f['phase']})", red=True, bold=True)
+        tr.write_line(f"      last step  : {f['last_step']}")
+        if f["last_description"]:
+            tr.write_line(f"      detail     : {f['last_description']}")
+        tr.write_line(f"      screenshot : {f['last_screenshot'] or '(none)'} (in PDF)")
+        tr.write_line(f"      evidence   : {f['pdf'] or '(no PDF)'}")
+        if f["error"]:
+            tr.write_line(f"      error      : {f['error']}")
+
+    path = _write_regression_summary(failures)
+    tr.write_line("")
+    tr.write_line(f"Regression summary written to: {path}")
+
+
+def _write_regression_summary(failures) -> str:
     """Persist the failure summary as a plain-text file in reports/."""
     from datetime import datetime
 
