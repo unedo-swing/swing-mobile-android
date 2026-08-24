@@ -7,7 +7,7 @@ class AddCreditCardPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.input_cardholder, timeout=20), "Add credit card form not shown"
-        self.capture_step("add_credit_card", "Add credit card form is visible")
+        self.capture_step("add_credit_card")
 
     def is_save_enabled(self) -> bool:
         return self.is_enabled(L.button_save)
@@ -19,7 +19,7 @@ class AddCreditCardPage(AndroidBasePage):
 
     def enter_card_number(self, number: str):
         self.fill(L.input_card_number, number)
-        self.capture_step("card_number", "Entered card number")
+        self.capture_step("card_number")
 
     def enter_expiry(self, expiry: str):
         self.fill(L.input_expiry, expiry)
@@ -27,7 +27,7 @@ class AddCreditCardPage(AndroidBasePage):
 
     def enter_cvv(self, cvv: str):
         self.fill(L.input_cvv, cvv)
-        self.capture_step("cvv", "Entered CVV")
+        self.capture_step("cvv")
 
     def fill_card(self, cardholder: str, number: str, expiry: str, cvv: str):
         self.enter_cardholder(cardholder)
@@ -38,20 +38,20 @@ class AddCreditCardPage(AndroidBasePage):
     # ================= options =================
     def set_as_primary(self):
         self.click(L.switch_set_primary)
-        self.capture_step("set_primary", "Toggled Set as primary method")
+        self.capture_step("set_primary")
 
     def is_primary_on(self) -> bool:
         return self.find(L.switch_set_primary).get_attribute("checked") == "true"
 
     def tap_terms(self):
         self.click(L.link_terms)
-        self.capture_step("terms", "Tapped Terms & conditions")
+        self.capture_step("terms")
 
     # ================= submit =================
     def tap_save(self):
         self.click(L.button_save)
-        self.capture_step("save_card", "Tapped Save credit card")
+        self.capture_step("save_card")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("add_card_back", "Tapped back")
+        self.capture_step("add_card_back")

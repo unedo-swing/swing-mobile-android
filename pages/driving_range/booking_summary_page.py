@@ -6,8 +6,10 @@ from locators.driving_range.booking_summary_locators import (
 )
 
 
+AMOUNT_RE = re.compile(r"\b(?:Rp|RM)\.?\s*\d[\d.,]*(?<![.,])")
+
 def _amounts(text: str) -> list[str]:
-    return re.findall(r"Rp\.\s?[\d.,]+", text or "")
+    return AMOUNT_RE.findall(text or "")
 
 
 class DrivingRangeBookingSummaryPage(AndroidBasePage):
@@ -16,7 +18,7 @@ class DrivingRangeBookingSummaryPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Booking summary screen not shown"
-        self.capture_step("dr_booking_summary", "Booking summary screen is visible")
+        self.capture_step("dr_booking_summary")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -89,54 +91,66 @@ class DrivingRangeBookingSummaryPage(AndroidBasePage):
         return summary
 
     def verify_booking_summary(self, range_name=None, player_name=None, date=None,
-                               booking_time=None, duration=None, bays=None,
-                               bay_type=None, total=None):
+                           booking_time=None, duration=None, bays=None,
+                           bay_type=None, total=None):
+
         if range_name is not None:
             self.verify_range_name(range_name)
+
+        actual = {
+            "Player": self.get_player_name(),
+            "Date": self.get_date(),
+            "Time": self.get_booking_time(),
+            "Duration": self.get_duration(),
+            "Bays": self.get_bays(),
+            "BayType": self.get_bay_type(),
+            "Total": self.get_total_payment(),
+        }
+
         self.capture_step(
             "dr_summary_verify",
-            f"Player={self.get_player_name()} | Date={self.get_date()} | "
-            f"Time={self.get_booking_time()} | Duration={self.get_duration()} | "
-            f"Bays={self.get_bays()} | BayType={self.get_bay_type()} | "
-            f"Total={self.get_total_payment()}",
+            " | ".join(f"{k}={v}" for k, v in actual.items()),
         )
-        if player_name is not None:
-            assert player_name in self.get_player_name()
-        if date is not None:
-            assert date in self.get_date()
-        if booking_time is not None:
-            assert booking_time in self.get_booking_time()
-        if duration is not None:
-            assert duration in self.get_duration()
-        if bays is not None:
-            assert bays in self.get_bays()
-        if bay_type is not None:
-            assert bay_type in self.get_bay_type()
-        if total is not None:
-            assert total in self.get_total_payment()
+
+        expected = {
+            "Player": player_name,
+            "Date": date,
+            "Time": booking_time,
+            "Duration": duration,
+            "Bays": bays,
+            "BayType": bay_type,
+            "Total": total,
+        }
+
+        failures = [
+            f"{k}: expected {exp!r} in actual {actual[k]!r}"
+            for k, exp in expected.items()
+            if exp is not None and exp not in actual[k]
+        ]
+        assert not failures, "Booking summary mismatch -> " + "; ".join(failures)
 
     # ================= sections / actions =================
     def verify_notes_section(self):
         assert self.is_visible_after_scroll(L.label_notes, timeout=15), "Notes section not shown"
-        self.capture_step("dr_summary_notes", "Notes section is visible")
+        self.capture_step("dr_summary_notes")
 
     def verify_terms_section(self):
         assert self.is_visible_after_scroll(L.label_terms, timeout=15), "Terms & conditions not shown"
-        self.capture_step("dr_summary_terms", "Terms & conditions section is visible")
+        self.capture_step("dr_summary_terms")
 
     def verify_price_details_section(self):
         assert self.is_visible_after_scroll(L.label_price_details, timeout=15), \
             "Price details section not shown"
-        self.capture_step("dr_summary_price", "Price details section is visible")
+        self.capture_step("dr_summary_price")
 
     def tap_show_more(self):
         self.click(L.button_show_more)
-        self.capture_step("dr_summary_show_more", "Tapped Show more (terms)")
+        self.capture_step("dr_summary_show_more")
 
     def tap_show_less(self):
         self.click(L.button_show_less)
-        self.capture_step("dr_summary_show_less", "Tapped Show less (terms)")
+        self.capture_step("dr_summary_show_less")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_summary_back", "Tapped back")
+        self.capture_step("dr_summary_back")

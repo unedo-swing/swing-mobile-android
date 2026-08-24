@@ -1,16 +1,13 @@
 import os
 
-from utils.excel_reader import get_rows_by_tc_id, read_row
-
-# Where the test data lives — file path + worksheets (all overridable by env).
-# One row per test case on the scenario sheet, and zero or more player rows
-# sharing that TC_ID on the players sheet.
+from utils.excel_reader import find_rows, get_rows_by_tc_id, read_row
 _DATA_PATH = os.getenv(
     "TEST_DATA_MOBILE",
     os.path.join(os.path.dirname(__file__), "test_data_swing_mobile.xlsx"),
 )
 _SHEET = os.getenv("TEE_TIME_SHEET", "Tee_Time")
 _PLAYERS_SHEET = os.getenv("TEE_TIME_PLAYERS_SHEET", "Tee_Time_Player")
+_ADD_ONS_SHEET = os.getenv("TEE_TIME_ADDONS_SHEET", "Tee_Time_Add_Ons")
 
 
 def _str_or_empty(value):
@@ -20,7 +17,7 @@ def _str_or_empty(value):
 
 
 def load_players(tc_id: str) -> list[dict]:
-    rows = get_rows_by_tc_id(_DATA_PATH, tc_id, id_column="TC_ID", sheet=_PLAYERS_SHEET)
+    rows = find_rows(_DATA_PATH, "TC_ID", tc_id, sheet=_PLAYERS_SHEET)
     players = []
     for row in rows:
         method = str(row.get("METHOD") or "manual").strip().lower()
@@ -39,6 +36,24 @@ def load_players(tc_id: str) -> list[dict]:
     return players
 
 
+def load_add_ons(tc_id: str, player_name: str | None = None) -> list[dict]:
+    rows = find_rows(_DATA_PATH, "TC_ID", tc_id, sheet=_ADD_ONS_SHEET)
+    add_ons = []
+    for row in rows:
+        name = row.get("ADD_ONS_NAME")
+        if name in (None, ""):
+            continue
+        owner = row.get("PLAYER_NAME") or ""
+        if player_name and owner and owner != player_name:
+            continue
+        add_ons.append({
+            "player_name": owner,
+            "add_ons_name": name,
+            "add_ons_qty": int(row.get("ADD_ONS_QTY") or 1),
+        })
+    return add_ons
+
+
 class TeeTimeData:
     @classmethod
     def load(cls, tc_id: str | None = None):
@@ -49,16 +64,10 @@ class TeeTimeData:
         cls.TC_ID = row.get("TC_ID")
         cls.TC_NAME = row.get("TC_NAME")
         cls.REGION = row.get("REGION")
-        # what to type into Explore search, vs. the course title it should open
-        cls.SEARCH_QUERY = row.get("SEARCH_QUERY")
         cls.COURSE_NAME = row.get("COURSE_NAME")
-        cls.CALENDAR_DATE = row.get("CALENDAR_DATE")    # e.g. "19 August 2026"
-        cls.PREFERRED_TIME = row.get("PREFERRED_TIME")  # slot, e.g. "09:30 - 10:00"
-        # the logged-in user — promo rows are addressed by player name
+        cls.BOOKING_DATE = row.get("BOOKING_DATE")    
+        cls.PREFERRED_TIME = row.get("PREFERRED_TIME")
         cls.HOST_NAME = row.get("HOST_NAME")
-        # --- promo ---
-        # HOST_PROMO is what the app applies on its own; PROMO_NAME is the one
-        # the test asks for, and falls back to it when the cell is blank.
         cls.HOST_PROMO = row.get("HOST_PROMO") or ""
         cls.PROMO_NAME = row.get("PROMO_NAME") or cls.HOST_PROMO
         cls.PROMO_CODE = row.get("PROMO_CODE") or ""
@@ -67,6 +76,4 @@ class TeeTimeData:
         cls.EXPECTED_RESULT = row.get("EXPECTED_RESULT")
         return cls
 
-
-# default: first row, so D.X works even before a TC_ID is selected
 TeeTimeData.load()

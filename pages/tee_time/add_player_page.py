@@ -7,7 +7,7 @@ class AddPlayerPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Add a player sheet not shown"
-        self.capture_step("add_player", "Add a player sheet is visible")
+        self.capture_step("add_player")
 
     def is_save_enabled(self) -> bool:
         return self.is_enabled(L.button_save_player)
@@ -15,11 +15,11 @@ class AddPlayerPage(AndroidBasePage):
     # ================= tabs =================
     def select_search_friend_tab(self):
         self.click(L.tab_search_friend)
-        self.capture_step("tab_search_friend", "Selected 'Search a friend' tab")
+        self.capture_step("tab_search_friend")
 
     def select_add_manually_tab(self):
         self.click(L.tab_add_manually)
-        self.capture_step("tab_add_manually", "Selected 'Add manually' tab")
+        self.capture_step("tab_add_manually")
 
     # ================= tab 1: search a friend =================
     def search_friend(self, query: str):
@@ -34,7 +34,7 @@ class AddPlayerPage(AndroidBasePage):
     # ================= tab 2: add manually =================
     def tap_add_from_contacts(self):
         self.click(L.link_add_from_contacts)
-        self.capture_step("add_from_contacts", "Tapped Add from contacts")
+        self.capture_step("add_from_contacts")
 
     def enter_first_name(self, name: str):
         self.fill(L.input_first_name, name)
@@ -46,7 +46,7 @@ class AddPlayerPage(AndroidBasePage):
 
     def open_country_picker(self):
         self.click(L.button_country)
-        self.capture_step("player_country", "Opened country picker")
+        self.capture_step("player_country")
 
     def enter_phone(self, phone: str):
         self.fill_verified(L.input_phone, phone)
@@ -66,8 +66,8 @@ class AddPlayerPage(AndroidBasePage):
     # ================= submit =================
     def tap_save_player(self):
         self.click(L.button_save_player)
-        self.capture_step("save_player", "Tapped Save player")
+        self.capture_step("save_player")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("add_player_back", "Tapped back")
+        self.capture_step("add_player_back")

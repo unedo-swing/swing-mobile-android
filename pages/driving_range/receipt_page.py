@@ -8,7 +8,7 @@ class DrivingRangeReceiptPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Receipt screen not shown"
-        self.capture_step("dr_receipt", "Receipt screen is visible")
+        self.capture_step("dr_receipt")
 
     def verify_receipt_id(self) -> str:
         receipt_id = self.get_receipt_id()
@@ -112,18 +112,18 @@ class DrivingRangeReceiptPage(AndroidBasePage):
     # ================= send receipt / actions =================
     def open_credits_earnings(self):
         self.click(L.label_credits_earned)
-        self.capture_step("dr_receipt_open_credits", "Opened Swing Credits earnings")
+        self.capture_step("dr_receipt_open_credits")
 
     def tap_contact_support(self):
         self.click(L.button_contact_support)
-        self.capture_step("dr_receipt_support", "Tapped Contact Swing support")
+        self.capture_step("dr_receipt_support")
 
     def is_send_enabled(self) -> bool:
         return self.is_enabled(L.button_send_receipt)
 
     def tap_send_receipt(self):
         self.click(L.button_send_receipt)
-        self.capture_step("dr_receipt_send", "Tapped Send receipt")
+        self.capture_step("dr_receipt_send")
 
     def is_send_on_cooldown(self) -> bool:
         return self.find_anywhere(L.label_send_cooldown) is not None
@@ -134,4 +134,4 @@ class DrivingRangeReceiptPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_receipt_back", "Tapped back")
+        self.capture_step("dr_receipt_back")

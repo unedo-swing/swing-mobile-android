@@ -16,11 +16,11 @@ class FeaturedPromosPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Featured promos screen not shown"
-        self.capture_step("featured_promos", "Featured promos screen is visible")
+        self.capture_step("featured_promos")
 
     def verify_auto_claim_banner(self):
         assert self.is_visible(L.banner_auto_claim, timeout=10), "Auto-claim banner not shown"
-        self.capture_step("featured_promos_banner", "Auto-claim banner is visible")
+        self.capture_step("featured_promos_banner")
 
     def verify_promo(self, name: str):
         assert self.find_anywhere(L.promo_by_name % name) is not None, f"Promo '{name}' not listed"
@@ -62,13 +62,6 @@ class FeaturedPromosPage(AndroidBasePage):
 
     # ================= reading =================
     def get_promos(self, max_swipes: int = 15) -> list:
-        """Every promo on the screen, scrolling the whole list.
-
-        Flutter builds lazily, so a single find_all only ever sees the cards
-        currently on screen — the list is walked top to bottom and cards are
-        de-duplicated by name. A card met again while scrolled further into
-        view can carry a fuller content-desc, so the longer one wins.
-        """
         self.scroll_to_top()
         promos: dict = {}
         for _ in range(max_swipes):
@@ -127,4 +120,4 @@ class FeaturedPromosPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("featured_promos_back", "Left the Featured promos screen")
+        self.capture_step("featured_promos_back")

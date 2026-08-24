@@ -7,7 +7,7 @@ class WhatsNewPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=30), "What's new screen not shown"
-        self.capture_step("whats_new", "What's new screen is visible")
+        self.capture_step("whats_new")
 
     def is_shown(self, timeout: int = 10) -> bool:
         return self.is_visible(L.label_title, timeout=timeout, log=False)
@@ -41,15 +41,15 @@ class WhatsNewPage(AndroidBasePage):
     # ================= action steps =================
     def tap_see_updates(self):
         self.click(L.link_see_updates)
-        self.capture_step("whats_new_see_updates", "Tapped See our updates")
+        self.capture_step("whats_new_see_updates")
 
     def tap_close(self):
         self.click(L.button_close)
-        self.capture_step("whats_new_close", "Closed the What's new screen")
+        self.capture_step("whats_new_close")
 
     def dismiss_if_shown(self, timeout: int = 10) -> bool:
         if not self.is_shown(timeout):
             return False
-        self.capture_step("whats_new", "What's new screen is visible")
+        self.capture_step("whats_new")
         self.tap_close()
         return True

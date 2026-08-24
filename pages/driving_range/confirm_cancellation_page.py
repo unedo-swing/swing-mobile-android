@@ -10,7 +10,7 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Confirm cancellation screen not shown"
-        self.capture_step("dr_confirm_cancellation", "Confirm cancellation screen is visible")
+        self.capture_step("dr_confirm_cancellation")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -30,7 +30,7 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
     def verify_reason_section(self):
         assert self.is_visible_after_scroll(L.label_cancellation_reason, timeout=15), \
             "Cancellation reason section not shown"
-        self.capture_step("dr_cancel_reason", "Cancellation reason section is visible")
+        self.capture_step("dr_cancel_reason")
 
     def select_reason(self, name: str):
         self.click(L.reason_by_name % name)
@@ -43,7 +43,7 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
     # ================= refund destination =================
     def tap_select_bank(self):
         self.click(L.button_select_bank)
-        self.capture_step("dr_cancel_select_bank", "Tapped Select Bank")
+        self.capture_step("dr_cancel_select_bank")
 
     def enter_bank_account_number(self, number: str):
         self.type_text(L.input_bank_account_number, number)
@@ -80,25 +80,25 @@ class DrivingRangeConfirmCancellationPage(AndroidBasePage):
 
     def verify_confirm_enabled(self):
         assert self.is_confirm_enabled(), "Confirm & cancel is disabled"
-        self.capture_step("dr_cancel_confirm_enabled", "Confirm & cancel is enabled")
+        self.capture_step("dr_cancel_confirm_enabled")
 
     def tap_confirm_cancel(self):
         self.click(L.button_confirm_cancel)
-        self.capture_step("dr_cancel_confirm", "Tapped Confirm & cancel")
+        self.capture_step("dr_cancel_confirm")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_cancel_back", "Tapped back")
+        self.capture_step("dr_cancel_back")
 
     # ================= confirm dialog =================
     def verify_confirm_dialog(self):
         assert self.is_visible(L.dialog_title, timeout=15), "Confirm cancel dialog not shown"
-        self.capture_step("dr_cancel_dialog", "Confirm cancel dialog is visible")
+        self.capture_step("dr_cancel_dialog")
 
     def dialog_confirm(self):
         self.click(L.dialog_button_confirm)
-        self.capture_step("dr_cancel_dialog_confirm", "Tapped Confirm cancellation (dialog)")
+        self.capture_step("dr_cancel_dialog_confirm")
 
     def dialog_go_back(self):
         self.click(L.dialog_button_go_back)
-        self.capture_step("dr_cancel_dialog_back", "Tapped Go back (dialog)")
+        self.capture_step("dr_cancel_dialog_back")

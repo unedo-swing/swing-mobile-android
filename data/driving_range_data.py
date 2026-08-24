@@ -35,6 +35,10 @@ def _int_or_empty(value):
     return "" if value in (None, "") else int(value)
 
 
+def _str_or_empty(value) -> str:
+    return "" if value in (None, "") else str(value).strip()
+
+
 class DrivingRangeData:
 
     @classmethod
@@ -43,7 +47,10 @@ class DrivingRangeData:
             row = get_rows_by_tc_id(_DATA_PATH, tc_id, id_column="TC_ID", sheet=_SHEET)[0]
         else:
             row = read_row(_DATA_PATH, sheet=_SHEET)
+        cls.TC_ID = row.get("TC_ID")
         cls.TC_NAME = row.get("TC_NAME")
+        cls.MEMBERSHIP = row.get("MEMBERSHIP")
+        cls.VENUE_TYPE = row.get("VENUE_TYPE")
         cls.REGION = row.get("REGION")
         cls.DRIVING_RANGE_NAME = row.get("DRIVING_RANGE_NAME")
         cls.BOOKING_DATE = row.get("BOOKING_DATE")
@@ -69,8 +76,18 @@ class DrivingRangeData:
         cls.BANK_ACCOUNT_NUMBER = "" if _acct in (None, "") else str(_acct)
         cls.BANK_ACCOUNT_NAME = row.get("BANK_ACCOUNT_NAME")
         cls.CODE_BOOKING = row.get("CODE_BOOKING")
+        # --- account that books (only the cross-country rows fill these; the
+        # rest of the sheet books with whoever the suite is already logged in as)
+        cls.USER_COUNTRY = row.get("USER_COUNTRY")
+        cls.PHONE_NUMBER = _str_or_empty(row.get("PHONE_NUMBER"))
+        cls.VERIFICATION_METHOD = (
+            str(row.get("VERIFICATION_METHOD") or "whatsapp").strip().lower()
+        )
+        cls.OTP = _str_or_empty(row.get("OTP"))
+        # --- documentation only (never read by a step) ---
+        cls.PRECONDITION = row.get("PRECONDITION")
+        cls.EXPECTED_RESULT = row.get("EXPECTED_RESULT")
         return cls
 
 
-# default: first row, so D.X works even before a TC_ID is selected
 DrivingRangeData.load()

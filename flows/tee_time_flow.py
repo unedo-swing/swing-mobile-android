@@ -13,6 +13,10 @@ from pages.tee_time.payment_method_page import PaymentMethodPage
 from pages.tee_time.promo_page import PromoPage
 from pages.tee_time.switch_group_booking_page import SwitchGroupBookingPage
 from pages.tee_time.swing_credits_earnings_page import SwingCreditsEarningsPage
+from pages.tee_time.add_ons_page import AddOnsPage
+from pages.swing_credits.swing_credits_page import SwingCreditsPage
+from pages.swing_credits.history_page import HistoryPage
+from utils.summary import summary_failures
 
 # What the promo row on the booking confirmation reads when no promo is on the
 # player — i.e. the placeholder, not a promo name.
@@ -36,6 +40,9 @@ class TeeTimeFlow(BaseFlow):
         self.booking_details = self.page(BookingDetailsPage)
         self.booking_summary = self.page(BookingSummaryPage)
         self.receipt = self.page(ReceiptPage)
+        self.add_ons = self.page(AddOnsPage)
+        self.swing_credit = self.page(SwingCreditsPage)
+        self.history_credit = self.page(HistoryPage)
 
     # --- steps ---
     def select_region(self, region: str):
@@ -53,6 +60,7 @@ class TeeTimeFlow(BaseFlow):
         self.explore.open_course(course_name)
         self.details.verify_screen()
         self.details.verify_course_name(course_name)
+
 
     def pick_date_from_calendar(self, course_name: str, calendar_date: str):
         self.details.open_calendar(course_name)
@@ -142,19 +150,16 @@ class TeeTimeFlow(BaseFlow):
         self.booking_confirmation.tap_select_payment()
         self.payment_method.verify_screen()
         self.payment_method.select_card(card_name)
-        self.booking_confirmation.verify_screen()   # wait for return
 
     def change_payment_method(self, payment_method: str):
         self.booking_confirmation.tap_select_payment()
         self.payment_method.verify_screen()
         self.payment_method.select_payment_method(payment_method)
-        self.booking_confirmation.verify_screen()   # wait for return
 
     def change_payment_qris(self):
         self.booking_confirmation.tap_select_payment()
         self.payment_method.verify_screen()
         self.payment_method.select_qris()
-        self.booking_confirmation.verify_screen()   # wait for return
 
     def change_promo(self, player_name: str, promo_name: str):
         promo_auto_applied = self.booking_confirmation.get_promo_auto_applied(player_name)
@@ -246,6 +251,47 @@ class TeeTimeFlow(BaseFlow):
         assert self.booking_confirmation.is_pay_now_enabled(), "Pay now is disabled"
         self.booking_confirmation.tap_pay_now()
 
+    # --- one booking read on all three screens: confirmation -> confirmed -> details ---
+    def get_data_before_payment(self) -> dict:
+        return self.booking_confirmation.get_summary()
+
+    def pay_and_get_confirmed_booking(self, before: dict) -> dict:
+        self.pay_now()
+        self.confirmed.verify_screen()
+        after = self.confirmed.get_summary()
+
+        mismatches = summary_failures(before, after)
+        self.confirmed.capture_step(
+            "tt_compare_booking",
+            "Confirmation matches confirmed booking" if not mismatches
+            else f"{len(mismatches)} field(s) differ",
+            compare={
+                "left_label": "Booking confirmation",
+                "right_label": "Confirmed booking",
+                "before": before,
+                "after": after,
+                "mismatch_fields": [line.split(":", 1)[0] for line in mismatches],
+            },
+        )
+        assert not mismatches, (
+            "Confirmed booking does not match the booking confirmation:\n  "
+            + "\n  ".join(mismatches)
+        )
+        return after
+
+    def verify_booking_details_summary(self, confirmed: dict, status: str | None = None) -> dict:
+        self.booking_details.verify_screen()
+        self.booking_details.verify_booking_summary(
+            booking_id=confirmed.get("Booking"),
+            status=status,
+            date=confirmed.get("Date"),
+            session=confirmed.get("Session"),
+            preferred_time=confirmed.get("Time"),
+            players=confirmed.get("Players"),
+            total=confirmed.get("Total"),
+        )
+        return self.booking_details.get_summary()
+
     # --- verify: post-payment "You're confirmed!" screen ---
     def verify_confirmed_booking(self, course_name: str | None = None, date: str | None = None,
                                  session: str | None = None, preferred_time: str | None = None,
@@ -331,3 +377,94 @@ class TeeTimeFlow(BaseFlow):
         amount = self.credits.get_player_credit(player_name)
         self.credits.tap_got_it()
         return amount
+
+    def verify_course_details(self):
+        self.details.verify_details_sections()
+
+    def verify_featured_promo(self):
+        self.details.tap_see_all_promo()
+        self.featured_promos.verify_auto_claim_banner()
+        names = self.featured_promos.get_promo_names()
+        self.featured_promos.tap_back()
+        self.details.verify_screen()
+        return names
+
+    def verify_course_promo(self, promo_name: str):
+        self.details.verify_promo(promo_name)
+        return self.details.get_promo_names()
+
+    def open_standard_booking(self, region: str, course_name: str, calendar_date: str,
+                              preferred_time: str):
+        self.select_region(region)
+        self.open_tee_time()
+        self.open_course_by_keyword(course_name)
+        self.pick_date_from_calendar(course_name, calendar_date)
+        self.select_preferred_time(preferred_time)
+        self.start_standard_booking()
+
+    def book_without_promo(self, player_names: list[str]) -> dict:
+        removed = {}
+        for name in player_names:
+            self.remove_promo(name)
+            removed[name] = self.verify_promo_removed(name)
+        return removed
+
+    def keep_auto_applied_promo(self, player_names: list[str]) -> dict:
+        return {name: self.verify_auto_applied_promo(name) for name in player_names}
+
+    def redeem_promo(self, player_names: list[str], promo_name: str, promo_code: str) -> dict:
+        applied = {}
+        for name in player_names:
+            self.change_promo_with_add_promo_code(name, promo_name, promo_code)
+            applied[name] = self.verify_promo_applied(name, promo_name)
+        return applied
+
+    def add_addons_for(self, player_name: str, addons: list[dict]):
+        if not addons:
+            return
+        self.booking_confirmation.open_addons_for(player_name)
+        self.add_ons.verify_screen()
+        for addon in addons:
+            name = addon["add_ons_name"]
+            quantity = int(addon["add_ons_qty"])
+            self.add_ons.verify_addon(name)
+            current = self.add_ons.get_addon_count(name)
+            if quantity > current:
+                self.add_ons.increment(name, quantity - current)
+            elif quantity < current:
+                self.add_ons.decrement(name, current - quantity)
+        self.add_ons.tap_save()
+        self.booking_confirmation.verify_screen()
+
+    def add_addons(self, addons: list[dict], host_name: str = ""):
+        if not addons:
+            return
+        grouped = {}
+        for addon in addons:
+            name = addon.get("player_name") or host_name
+            grouped.setdefault(name, []).append(addon)
+        for player_name, player_addons in grouped.items():
+            self.add_addons_for(player_name, player_addons)
+
+    def use_swing_credits(self):
+        self.booking_confirmation.toggle_swing_credits()
+        assert self.booking_confirmation.is_swing_credits_on(), \
+            "Swing Credits switch did not turn on"
+        self.booking_confirmation.capture_step("tt_use_credits", "Swing Credits switched on")
+
+    def check_used_credit(self, booking_id: str, credits_used: str = "") -> dict:
+        self.home.go_to_home()
+        self.home.verify_screen()
+        self.home.open_swing_credits()
+        self.swing_credit.open_history()
+        self.history_credit.tap_filter_credit_used()
+        if credits_used:
+            self.history_credit.verify_credit(booking_id, credits_used)
+        return self.history_credit.get_entry(booking_id)
+
+    def verify_max_players(self, label: str = ""):
+        self.booking_confirmation.verify_max_player(label)
+
+    def verify_min_players(self, label: str = ""):
+        self.booking_confirmation.verify_min_player(label)
+

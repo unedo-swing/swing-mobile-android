@@ -4,7 +4,6 @@ from locators.swing_pass.billing_details_locators import BillingDetailsLocators 
 
 class BillingDetailsPage(AndroidBasePage):
 
-    # The dict key each field label maps to in get_details().
     FIELDS = {
         "player_name": L.FIELD_PLAYER_NAME,
         "membership_id": L.FIELD_MEMBERSHIP_ID,
@@ -16,11 +15,10 @@ class BillingDetailsPage(AndroidBasePage):
         "payment_method": L.FIELD_PAYMENT_METHOD,
     }
 
-    # ================= verify steps =================
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Billing Details screen not shown"
-        self.capture_step("billing_details", "Billing Details screen is visible")
+        self.capture_step("billing_details")
 
     def verify_labels(self):
         missing = [label for label in self.FIELDS.values()
@@ -50,7 +48,6 @@ class BillingDetailsPage(AndroidBasePage):
             )
         )
 
-    # ================= reading =================
     def get_field(self, label: str) -> str:
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
@@ -69,15 +66,14 @@ class BillingDetailsPage(AndroidBasePage):
     def get_payment_method(self) -> str:
         return self.get_field(L.FIELD_PAYMENT_METHOD)
 
-    # ================= action steps =================
     def tap_contact_support(self):
         self.click(L.button_contact_support)
-        self.capture_step("billing_contact_support", "Tapped Contact Swing Support")
+        self.capture_step("billing_contact_support")
 
     def tap_send_receipt(self):
         self.click(L.button_send_receipt)
-        self.capture_step("billing_send_receipt", "Tapped Send receipt")
+        self.capture_step("billing_send_receipt")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("billing_details_back", "Left the Billing Details screen")
+        self.capture_step("billing_details_back")

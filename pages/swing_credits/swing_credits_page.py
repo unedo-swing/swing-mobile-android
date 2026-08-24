@@ -8,12 +8,12 @@ class SwingCreditsPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Swing Credits screen not shown"
-        self.capture_step("swing_credits", "Swing Credits screen is visible")
+        self.capture_step("swing_credits")
 
     def verify_redeem_section(self):
         assert self.is_visible_after_scroll(L.label_redeem_section), \
             "'Redeem your Swing Credits' section not shown"
-        self.capture_step("credits_redeem_section", "Redeem your Swing Credits section is visible")
+        self.capture_step("credits_redeem_section")
 
     # ================= reading values =================
     def _desc(self, locator) -> str:
@@ -41,7 +41,7 @@ class SwingCreditsPage(AndroidBasePage):
     # ================= action steps =================
     def toggle_always_use(self):
         self.click(L.switch_always_use)
-        self.capture_step("credits_always_use_toggled", "Toggled Always use Swing Credits")
+        self.capture_step("credits_always_use_toggled")
 
     def set_always_use(self, on: bool):
         if self.is_always_use_enabled() == on:
@@ -55,19 +55,19 @@ class SwingCreditsPage(AndroidBasePage):
 
     def open_redeem_sheet(self):
         self.click(L.button_redeem_credits)
-        self.capture_step("credits_open_redeem", "Opened Redeem Swing Credits sheet")
+        self.capture_step("credits_open_redeem")
 
     def open_cashbacks(self):
         self.click(L.button_see_all_cashbacks)
-        self.capture_step("credits_see_cashbacks", "Tapped See all cashbacks")
+        self.capture_step("credits_see_cashbacks")
 
     def open_learn_more(self):
         self.click(L.button_learn_more)
-        self.capture_step("credits_learn_more", "Tapped Learn more")
+        self.capture_step("credits_learn_more")
 
     def open_history(self):
         self.click(L.button_see_history)
-        self.capture_step("credits_see_history", "Tapped See history")
+        self.capture_step("credits_see_history")
 
     def open_reward(self, name: str):
         self.click(L.reward_card_by_name % name)
@@ -79,4 +79,4 @@ class SwingCreditsPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("credits_back", "Left the Swing Credits screen")
+        self.capture_step("credits_back")

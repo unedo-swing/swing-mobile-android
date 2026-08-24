@@ -10,12 +10,12 @@ class CashbacksPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Swing Credits cashbacks screen not shown"
-        self.capture_step("cashbacks", "Swing Credits cashbacks screen is visible")
+        self.capture_step("cashbacks")
 
     def verify_columns(self):
         assert self.is_visible(L.label_regular_players), "'Regular Swing players' column not shown"
         assert self.is_visible(L.label_pass_members), "'Swing Pass members' column not shown"
-        self.capture_step("cashbacks_columns", "Both cashback columns are labelled")
+        self.capture_step("cashbacks_columns")
 
     def is_venue_listed(self, name: str) -> bool:
         return self.find_anywhere(L.venue_by_name % name) is not None
@@ -83,4 +83,4 @@ class CashbacksPage(AndroidBasePage):
     # ================= navigation =================
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("cashbacks_back", "Left the cashbacks screen")
+        self.capture_step("cashbacks_back")

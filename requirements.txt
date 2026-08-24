@@ -9,9 +9,8 @@ openpyxl>=3.1.0
 
 # Reporting
 reportlab>=4.1.0          # PDF evidence — utils/pdf_reporter.py
-allure-pytest>=2.13.5     # Allure results — utils/allure_reporter.py, opt-in with --allure
-                          # rendering the report also needs the Allure CLI (Java):
-                          #   brew install allure
+                          # the PDFs are uploaded to ClickUp and the run is
+                          # posted to a chat channel — utils/clickup_reporter.py
 
 # HTTP — utils/api_client.py (backend calls: OTP request, data checks) and
 # .github/scripts/fetch_firebase_apk.py (Firebase App Distribution, CI only)

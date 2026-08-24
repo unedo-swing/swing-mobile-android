@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal, InvalidOperation
 
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.booking_details_locators import (
@@ -6,8 +7,41 @@ from locators.driving_range.booking_details_locators import (
 )
 
 
+AMOUNT_RE = re.compile(r"\b(RM|Rp)\.?\s*([\d.,]*\d)")
+
+
 def _amounts(text: str) -> list[str]:
-    return re.findall(r"Rp\.\s?[\d.,]+", text or "")
+    return [match.group() for match in AMOUNT_RE.finditer(text or "")]
+
+# ID: 1.500.000,00  |  MY: 1,500,000.00
+_SEPARATORS = {"Rp": (".", ","), "RM": (",", ".")}
+
+
+def parse_amount(text: str, default_symbol: str = "Rp") -> Decimal | None:
+    if not text:
+        return None
+    m = AMOUNT_RE.search(text)
+    if m:
+        symbol, digits = m.group(1), m.group(2)
+    else:
+        m = re.search(r"[\d.,]*\d", text)
+        if not m:
+            return None
+        symbol, digits = default_symbol, m.group()
+
+    thousands, decimal = _SEPARATORS[symbol]
+    digits = digits.replace(thousands, "").replace(decimal, ".")
+    try:
+        return Decimal(digits)
+    except InvalidOperation:
+        return None
+
+
+def amounts_equal(expected: str, actual: str) -> bool:
+    m = AMOUNT_RE.search(actual) or AMOUNT_RE.search(expected)
+    symbol = m.group(1) if m else "Rp"
+    a, b = parse_amount(expected, symbol), parse_amount(actual, symbol)
+    return a is not None and a == b
 
 
 class DrivingRangeBookingDetailsPage(AndroidBasePage):
@@ -16,7 +50,7 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Booking details screen not shown"
-        self.capture_step("dr_booking_details", "Booking details screen is visible")
+        self.capture_step("dr_booking_details")
 
     def verify_booking_id(self) -> str:
         booking_id = self.get_booking_id()
@@ -99,36 +133,55 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
         return summary
 
     def verify_booking_summary(self, booking_id=None, player_name=None, date=None,
-                               booking_time=None, duration=None, bays=None,
-                               bay_type=None, total=None):
+                           booking_time=None, duration=None, bays=None,
+                           bay_type=None, total=None):
+
+        actual = {
+            "Booking": self.get_booking_id(),
+            "Player": self.get_player_name(),
+            "Date": self.get_date(),
+            "Time": self.get_booking_time(),
+            "Duration": self.get_duration(),
+            "Bays": self.get_bays(),
+            "BayType": self._read(self.get_bay_type),
+            "Total": self.get_total_payment(),
+        }
+
         self.capture_step(
             "dr_details_verify",
-            f"Booking={self.get_booking_id()} | Player={self.get_player_name()} | "
-            f"Date={self.get_date()} | Time={self.get_booking_time()} | "
-            f"Duration={self.get_duration()} | Bays={self.get_bays()} | "
-            f"BayType={self.get_bay_type()} | Total={self.get_total_payment()}",
+            " | ".join(f"{k}={v}" for k, v in actual.items() if v),
         )
-        if booking_id is not None:
-            assert booking_id in self.get_booking_id()
-        if player_name is not None:
-            assert player_name in self.get_player_name()
-        if date is not None:
-            assert date in self.get_date()
-        if booking_time is not None:
-            assert booking_time in self.get_booking_time()
-        if duration is not None:
-            assert duration in self.get_duration()
-        if bays is not None:
-            assert bays in self.get_bays()
-        if bay_type is not None:
-            assert bay_type in self.get_bay_type()
-        if total is not None:
-            assert total in self.get_total_payment()
+
+        expected = {
+            "Booking": booking_id,
+            "Player": player_name,
+            "Date": date,
+            "Time": booking_time,
+            "Duration": duration,
+            "Bays": bays,
+            "BayType": bay_type,
+            "Total": total,
+        }
+
+        AMOUNT_FIELDS = {"Total"}
+
+        failures = []
+        for key, exp in expected.items():
+            if exp is None:
+                continue
+            act = actual[key]
+            if key in AMOUNT_FIELDS:
+                if not amounts_equal(exp, act):
+                    failures.append(f"{key}: expected {exp!r}, got {act!r}")
+            elif exp not in act:
+                failures.append(f"{key}: expected {exp!r} in actual {act!r}")
+
+        assert not failures, "Booking detail mismatch -> " + "; ".join(failures)
 
     # ================= history =================
     def verify_history_section(self):
         assert self.is_visible_after_scroll(L.label_history, timeout=15), "History section not shown"
-        self.capture_step("dr_details_history", "History section is visible")
+        self.capture_step("dr_details_history")
 
     def verify_history_item(self, status: str):
         assert self.is_visible_after_scroll(L.history_item_by_status % status), \
@@ -148,7 +201,7 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
     def verify_reschedule_summary_section(self):
         assert self.is_visible_after_scroll(L.label_reschedule_summary, timeout=15), \
             "Reschedule summary section not shown"
-        self.capture_step("dr_details_reschedule_summary", "Reschedule summary section is visible")
+        self.capture_step("dr_details_reschedule_summary")
 
     def get_reschedule_change(self) -> str:
         return self.scroll_and_find(L.label_reschedule_change).get_attribute("content-desc") or ""
@@ -164,7 +217,7 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
 
     def tap_reschedule_see_details(self):
         self.click(L.button_reschedule_see_details)
-        self.capture_step("dr_details_reschedule_see_details", "Tapped See details (reschedule)")
+        self.capture_step("dr_details_reschedule_see_details")
 
     def get_reschedule_summary(self) -> dict:
         summary = {
@@ -189,33 +242,33 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
     # ================= action steps =================
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_details_back", "Tapped back")
+        self.capture_step("dr_details_back")
 
     def tap_see_breakdown(self):
         self.click(L.button_see_breakdown)
-        self.capture_step("dr_details_breakdown", "Tapped See complete breakdown")
+        self.capture_step("dr_details_breakdown")
 
     def tap_see_receipt(self):
         self.click(L.button_see_receipt)
-        self.capture_step("dr_details_receipt", "Tapped See receipt")
+        self.capture_step("dr_details_receipt")
     
     def tap_three_dots(self):
         self.click(L.button_three_dots)
-        self.capture_step("Tap Three Dots", "")
+        self.capture_step("Tap Three Dots")
     
     def tap_reschedule_booking(self):
         self.click(L.button_reschedule_booking)
-        self.capture_step("Tap Reschedule Booking", "")
+        self.capture_step("Tap Reschedule Booking")
     
     def tap_cancel_booking(self):
         self.click(L.button_cancel_booking)
-        self.capture_step("Tap Cancel Booking", "")
+        self.capture_step("Tap Cancel Booking")
     
     def tap_contact_swing_support(self):
         self.click(L.button_contact_swing_support)
-        self.capture_step("Tap Swing Support", "")
+        self.capture_step("Tap Swing Support")
     
     def tap_close_bottom_sheet(self):
         self.click(L.button_close_bottom_sheet)
-        self.capture_step("Close Bottom Sheet", "")
+        self.capture_step("Close Bottom Sheet")
     

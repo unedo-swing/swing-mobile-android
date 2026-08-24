@@ -7,7 +7,7 @@ class GolfCourseDetailsPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Golf course details screen not shown"
-        self.capture_step("course_details", "Golf course details screen is visible")
+        self.capture_step("course_details")
 
     def verify_course_name(self, name: str):
         assert self.is_visible(L.label_course_name % name), f"Course '{name}' not shown"
@@ -16,16 +16,17 @@ class GolfCourseDetailsPage(AndroidBasePage):
     # ================= header =================
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("details_back", "Tapped back")
+        self.capture_step("details_back")
 
     def tap_share(self):
         self.click(L.button_share)
-        self.capture_step("details_share", "Tapped share")
+        self.capture_step("details_share")
 
     # ================= date & session =================
     def open_calendar(self, course_name: str):
+        self.wait_for(3)
         self.click(L.button_calender % course_name)
-        self.capture_step("open_calendar", "Opened the date calendar")
+        self.capture_step("open_calendar")
 
     def select_date_in_calendar(self, date_text: str):
         self.click(L.button_date_in_calender % date_text)
@@ -37,11 +38,11 @@ class GolfCourseDetailsPage(AndroidBasePage):
 
     def select_day_session(self):
         self.click(L.tab_day_session)
-        self.capture_step("day_session", "Selected Day Session")
+        self.capture_step("day_session")
 
     def select_night_session(self):
         self.click(L.tab_night_session)
-        self.capture_step("night_session", "Selected Night Session")
+        self.capture_step("night_session")
 
     # ================= tee-time slots =================
     def select_time_slot(self, time_text: str):
@@ -50,31 +51,32 @@ class GolfCourseDetailsPage(AndroidBasePage):
 
     # ================= prices / amenities / location / more info =================
     def verify_prices_section(self):
+        self.scroll_down_to_element(L.label_prices_include)
         assert self.is_visible(L.label_prices_include, timeout=15), "Prices section not shown"
-        self.capture_step("prices_section", "Prices shown include section is visible")
+        self.capture_step("prices_section")
 
     def verify_amenities_section(self):
-        self.scroll_to_text("Amenities")
+        self.scroll_down_to_element(L.label_amenities)
         assert self.is_visible(L.label_amenities, timeout=15), "Amenities section not shown"
-        self.capture_step("amenities_section", "Amenities section is visible")
+        self.capture_step("amenities_section")
 
     def verify_amenity(self, name: str):
         assert self.is_visible(L.amenity_by_name % name), f"Amenity '{name}' not shown"
         self.capture_step("amenity", f"Amenity shown: {name}")
 
     def verify_location_section(self):
-        self.scroll_to_text("Location")
+        self.scroll_down_to_element(L.label_location_section)
         assert self.is_visible(L.label_location_section, timeout=15), "Location section not shown"
-        self.capture_step("location_section", "Location section is visible")
+        self.capture_step("location_section")
 
     def tap_view_on_maps(self):
         self.click(L.button_view_on_maps)
-        self.capture_step("view_on_maps", "Tapped View on Google Maps")
+        self.capture_step("view_on_maps")
 
     def verify_more_info_section(self):
-        self.scroll_to_text("More information")
+        self.scroll_down_to_element(L.label_more_information)
         assert self.is_visible(L.label_more_information, timeout=15), "More information section not shown"
-        self.capture_step("more_info_section", "More information section is visible")
+        self.capture_step("more_info_section")
 
     def get_stat(self, label: str) -> str:
         return self.find(L.stat_by_label % label).get_attribute("content-desc") or ""
@@ -90,11 +92,65 @@ class GolfCourseDetailsPage(AndroidBasePage):
 
     def verify_cashback_badge(self):
         assert self.is_visible(L.badge_cashback), "Cashback badge not shown"
-        self.capture_step("cashback_badge", "Cashback badge is visible")
+        self.capture_step("cashback_badge")
 
     def is_book_enabled(self) -> bool:
         return self.is_enabled(L.button_book)
 
     def tap_book(self):
         self.click(L.button_book)
-        self.capture_step("book_tee_time", "Tapped Book tee time")
+        self.capture_step("book_tee_time")
+
+    def verify_promo(self, name: str):
+        assert self.is_visible(L.promo_by_name % name), f"Promo '{name}' not shown"
+        self.capture_step("tt_promo_shown", f"Promo '{name}' is shown")
+
+    def verify_promo_active(self, name: str):
+        assert self.is_visible(L.badge_active_by_promo % name), f"Promo '{name}' is not active"
+        self.capture_step("tt_promo_active", f"Promo '{name}' carries the Active badge")
+
+    def verify_promo_join(self, name: str):
+        assert self.is_visible(L.badge_join_by_promo % name), f"Promo '{name}' has no Join badge"
+        self.capture_step("tt_promo_join", f"Promo '{name}' carries the Join badge")
+
+    def get_promo_names(self) -> list:
+        names = [
+            (e.get_attribute("content-desc") or "").split("\n")[0].strip()
+            for e in self.find_all(L.promo_cards)
+        ]
+        self.capture_step("tt_promo_names", f"{len(names)} promo(s) on the course",
+                          data={"promos": names})
+        return names
+
+    def tap_promo(self, name: str):
+        self.click(L.promo_by_name % name)
+        self.capture_step("tt_promo", f"Tapped promo '{name}'")
+
+    def tap_promo_card(self, name: str):
+        self.click(L.button_promo_by_name % name)
+        self.capture_step("tt_promo_card", f"Opened promo '{name}'")
+
+    def swipe_promo_left(self):
+        self.swipe_left_in(L.promo_carousel)
+        self.capture_step("tt_promo_swipe")
+
+    def reveal_see_all_promo(self, max_swipes: int = 5) -> bool:
+        return self.swipe_left_to_element(
+            L.button_see_all_featured_promo, L.promo_carousel, max_swipes
+        )
+
+    def verify_see_all_promo(self):
+        assert self.reveal_see_all_promo(), "'See all' not shown after swiping the promo strip"
+        self.capture_step("tt_promo_see_all")
+
+    def tap_see_all_promo(self):
+        self.verify_see_all_promo()
+        self.click(L.button_see_all_featured_promo)
+        self.capture_step("tt_promo_see_all_tap")
+
+    def verify_details_sections(self):
+        self.verify_prices_section()
+        self.verify_amenities_section()
+        self.verify_location_section()
+        self.verify_more_info_section()
+        self.capture_step("tt_course_sections", "Prices, amenities, location and more information are shown")

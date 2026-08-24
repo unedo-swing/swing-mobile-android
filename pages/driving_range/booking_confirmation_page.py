@@ -7,10 +7,11 @@ from locators.driving_range.booking_confirmation_locators import (
 
 
 _BONUS_BALLS = re.compile(r"\+\s*([\d.,]+)\s*balls", re.IGNORECASE)
+AMOUNT_RE = re.compile(r"\b(?:Rp|RM)\.?\s*\d[\d.,]*(?<![.,])")
 
 
 def _amounts(text: str) -> list[str]:
-    return re.findall(r"Rp\.\s?[\d.,]+", text or "")
+    return AMOUNT_RE.findall(text or "")
 
 
 def _bonus_balls(text: str) -> str:
@@ -20,14 +21,15 @@ def _bonus_balls(text: str) -> str:
 
 
 # the promo row reads this when nothing is applied
-NO_PROMO_LABEL = "Apply a promo"
+NO_PROMO_LABEL = "Apply promo"
 
 # promo and credits only show up when they apply, so an empty one is left out
 # of the summary entirely rather than reported as a blank field
-_OPTIONAL_SUMMARY_FIELDS = ("promo", "credits_used", "credits_earned")
+_OPTIONAL_SUMMARY_FIELDS = ("promo", "credit_used", "credits_earned")
 
 
 def _value_after_label(text: str) -> str:
+    print(f'Looking for : {text}')
     return text.split("\n", 1)[1].strip() if "\n" in (text or "") else (text or "")
 
 
@@ -37,7 +39,7 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Booking confirmation screen not shown"
-        self.capture_step("dr_booking_confirmation", "Booking confirmation screen is visible")
+        self.capture_step("dr_booking_confirmation")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -51,11 +53,8 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
 
     def verify_pay_now_enabled(self):
         assert self.is_pay_now_enabled(), "Pay now is disabled"
-        self.capture_step("dr_pay_now_enabled", "Pay now is enabled")
+        self.capture_step("dr_pay_now_enabled")
 
-    def _desc(self, locator) -> str:
-        # this screen is long — scroll the row into view before reading it
-        return self.scroll_and_find(locator).get_attribute("content-desc") or ""
 
     def _read(self, getter) -> str:
         try:
@@ -139,11 +138,13 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         return _value_after_label(self._desc(L.label_swing_credits_used))
 
     def get_credits_earned(self) -> str:
+        if not self.is_visible(L.label_credits_earned, timeout=5, log=False):
+            return ""
         return self._desc(L.label_credits_earned)
 
     def open_credits_earnings(self):
         self.click(L.label_credits_earned)
-        self.capture_step("dr_open_credits", "Opened Swing Credits earnings")
+        self.capture_step("dr_open_credits")
 
     def get_selected_payment(self) -> str:
         el = self.find_anywhere(L.label_payment_method)
@@ -155,25 +156,38 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
                 return part
         return ""
 
-    def get_summary(self) -> dict:
+    def get_summary(self, bay_type: str = "", used_credit: str = "") -> dict:
         self.scroll_up_to_element(L.label_player_name)
+        summary = {}
+        if bay_type != "":
+            summary["bay_type"] = self._read(self.get_bay_type)
+    
         summary = {
             "player_name": self._read(self.get_player_name),
             "date": self._read(self.get_date),
             "booking_time": self._read(self.get_booking_time),
             "duration": self._read(self.get_duration),
             "bays": self._read(self.get_number_of_bays),
-            "bay_type": self._read(self.get_bay_type),
             "total": self._read(self.get_total_payment),
-            "promo": self._read(self.get_promo_name),
-            "credits_used": self._read(self.get_credits_used),
-            "credits_earned": self._read(self.get_credits_earned),
             "payment_method": self._read(self.get_payment_method),
         }
+        
+        promo = self.get_promo_name()
+        if promo != "":
+            summary["promo"] = promo
+            
+        credit_earning = self.get_credits_earned()
+        if credit_earning != "":
+            summary["credits_earned"] = credit_earning
+            
+        if used_credit != "":
+            summary["credit_used"] = self._read(self.get_credits_used)
+
         summary = {
             field: value for field, value in summary.items()
             if value or field not in _OPTIONAL_SUMMARY_FIELDS
         }
+
         self.capture_step(
             "dr_confirmation_summary",
             " | ".join(f"{k}={v}" for k, v in summary.items()),
@@ -184,13 +198,13 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
     def verify_addons_section(self):
         assert self.is_visible_after_scroll(L.label_addons, timeout=15), \
             "Rentals/add-ons section not shown"
-        self.capture_step("dr_addons", "Rentals/add-ons section is visible")
+        self.capture_step("dr_addons")
 
     def verify_balls_section(self):
         """Ball-based ranges show "How many balls?" in place of the add-ons section."""
         assert self.is_visible_after_scroll(L.label_balls, timeout=15), \
             "'How many balls?' section not shown"
-        self.capture_step("dr_balls", "'How many balls?' section is visible")
+        self.capture_step("dr_balls")
 
     def verify_addon(self, name: str):
         assert self.is_visible_after_scroll(L.addon_row_by_name % name), \
@@ -219,25 +233,29 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
 
     def set_addon_qty(self, name: str, target: int):
         current = self.get_addon_qty(name)
-        button = L.addon_minus_by_name if target > current else L.addon_plus_by_name
-        for _ in range(abs(target - current)):
-            self.click(button % name)
-            self.wait_for(2)
-        actual = self.get_addon_qty(name)
-        assert actual == target, \
-            f"Add-on '{name}' quantity is {actual}, expected {target}"
+        button = L.addon_plus_by_name if target > current else L.addon_minus_by_name
+        print(f"{button} - target : {target}, - Current: {current}")
+        different = abs(target - current)
+        if different != 0:
+            for _ in range(abs(target - current)):
+                self.click(button % name)
+                self.wait_for(2)
+            actual = self.get_addon_qty(name)
+            assert actual == target, \
+                f"Add-on '{name}' quantity is {actual}, expected {target}"
         self.capture_step("dr_addon_qty", f"Add-on '{name}' quantity: {current} -> {target}")
 
     def increment_addon(self, name: str, times: int = 1):
         for _ in range(times):
             self.click(L.addon_plus_by_name % name)
             self.wait_for(2)
-        self.capture_step("dr_addon_plus", f"Incremented '{name}' x{times}")
+        # self.capture_step("dr_addon_plus", f"Incremented '{name}' x{times}")
 
     def decrement_addon(self, name: str, times: int = 1):
         for _ in range(times):
             self.click(L.addon_minus_by_name % name)
-        self.capture_step("dr_addon_minus", f"Decremented '{name}' x{times}")
+            self.wait_for(2)
+        # self.capture_step("dr_addon_minus", f"Decremented '{name}' x{times}")
 
     # ================= notes / policy =================
     def add_notes(self, text: str):
@@ -246,20 +264,20 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
 
     def select_reschedule_tab(self):
         self.click(L.tab_reschedule)
-        self.capture_step("dr_reschedule_tab", "Selected Reschedule tab")
+        self.capture_step("dr_reschedule_tab")
 
     def select_cancellation_tab(self):
         self.click(L.tab_cancellation)
-        self.capture_step("dr_cancellation_tab", "Selected Cancellation tab")
+        self.capture_step("dr_cancellation_tab")
 
     def tap_learn_more(self):
         self.click(L.link_learn_more)
-        self.capture_step("dr_learn_more", "Tapped Learn more")
+        self.capture_step("dr_learn_more")
 
     # ================= promo / credits =================
     def open_promo(self):
         self.click(L.button_change_promo)
-        self.capture_step("dr_open_promo", "Opened promo picker")
+        self.capture_step("dr_open_promo")
 
     def verify_promo_auto_applied(self) -> str:
         promo = self._desc(L.button_change_promo).strip()
@@ -316,29 +334,43 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         x = r["x"] + r["width"] - max(30, int(r["width"] * 0.08))
         y = r["y"] + max(30, int(r["height"] * 0.14))
         self.driver.execute_script("mobile: clickGesture", {"x": x, "y": y})
-        self.capture_step("dr_swing_credits", "Toggled Use Swing Credits")
+        self.capture_step("dr_swing_credits")
 
     def open_redeem_swing_credits(self):
         self.click(L.button_redeem_swing_credits)
-        self.capture_step("dr_open_redeem", "Opened Redeem Swing Credits")
+        self.capture_step("dr_open_redeem")
 
     # ================= payment / pay =================
     def tap_select_payment(self):
         self.click(L.button_select_payment)
-        self.capture_step("dr_select_payment", "Tapped Select payment")
+        self.capture_step("dr_select_payment")
 
     def tap_change_payment(self):
         self.click(L.button_change_payment)
-        self.capture_step("dr_change_payment", "Tapped Change payment")
+        self.capture_step("dr_change_payment")
 
     def is_pay_now_enabled(self) -> bool:
         return self.is_enabled(L.button_pay_now)
 
     def tap_pay_now(self):
         self.click(L.button_pay_now)
-        self.capture_step("dr_pay_now", "Tapped Pay now")
+        self.capture_step("dr_pay_now")
+    
+    def tap_proceed_to_pay(self):
+        if self.is_visible(L.button_proceed_to_pay):
+            self.click(L.button_proceed_to_pay)
+            self.capture_step("Click Proceed To Pay")
         
     
+    @staticmethod
+    def parse_minimum_balls(message: str) -> dict:
+        numbers = re.findall(r"[\d][\d,.]*", message or "")
+        fields = ("balls", "times", "bays")
+        parsed = {field: "" for field in fields}
+        for field, value in zip(fields, numbers):
+            parsed[field] = value
+        parsed["message"] = message or ""
+        return parsed
     def get_minimum_balls_message(self) -> str:
         if not self.is_visible(L.toaster_minimum_balls, timeout=5, log=False):
             return ""

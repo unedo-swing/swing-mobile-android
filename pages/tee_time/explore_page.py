@@ -1,3 +1,5 @@
+import time
+
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.explore_locators import ExploreLocators as L
 
@@ -7,7 +9,7 @@ class ExplorePage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.search_bar, timeout=20), "Explore screen not shown"
-        self.capture_step("explore_screen", "Explore screen is visible")
+        self.capture_step("explore_screen")
 
     def is_loaded(self) -> bool:
         return self.is_visible(L.search_bar, timeout=20)
@@ -15,11 +17,11 @@ class ExplorePage(AndroidBasePage):
     # ================= header =================
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("explore_back", "Tapped back")
+        self.capture_step("explore_back")
 
     def tap_search(self):
         self.click(L.search_bar)
-        self.capture_step("explore_search", "Tapped Search golf courses")
+        self.capture_step("explore_search")
 
     def type_search(self, query: str):
         self.type_text(L.search_input, query)
@@ -29,12 +31,28 @@ class ExplorePage(AndroidBasePage):
     def search_course(self, query: str):
         self.tap_search()
         self.type_text(L.search_input, query)
+        self.wait_for(2)
         self.press_search()
         self.capture_step("search_course", f"Searched course '{query}'")
 
+    def type_keyword(self, query: str):
+        self.tap_search()
+        self.type_text(L.search_input, query)
+        self.capture_step("search_keyword", f"Typed '{query}'")
+
+    def submit_search(self):
+        self.wait_for_keyboard()
+        self.press_search()
+        self.hide_keyboard()
+
+    def search_keyword(self, query: str):
+        self.type_keyword(query)
+        self.submit_search()
+        self.capture_step("search_submitted", f"Searched '{query}'")
+
     def clear_search(self):
         self.click(L.button_clear_search)
-        self.capture_step("clear_search", "Cleared the search field")
+        self.capture_step("clear_search")
 
     # ================= search results =================
     def get_results_header(self) -> str:
@@ -50,11 +68,11 @@ class ExplorePage(AndroidBasePage):
     # ================= empty results state =================
     def verify_no_results(self):
         assert self.is_visible(L.label_no_results, timeout=15), "Empty-results state not shown"
-        self.capture_step("no_results", "No-results empty state is visible")
+        self.capture_step("no_results")
 
     def tap_request_location(self):
         self.click(L.button_request_location)
-        self.capture_step("request_location", "Tapped Request a location")
+        self.capture_step("request_location")
 
     # ================= Swing Pass filter =================
     def is_swing_pass_on(self) -> bool:
@@ -62,7 +80,7 @@ class ExplorePage(AndroidBasePage):
 
     def toggle_swing_pass_partners(self):
         self.click(L.switch_swing_pass)
-        self.capture_step("toggle_swing_pass", "Toggled Only show Swing Pass partners")
+        self.capture_step("toggle_swing_pass")
 
     def set_swing_pass_partners(self, on: bool):
         if self.is_swing_pass_on() != on:

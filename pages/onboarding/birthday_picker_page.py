@@ -23,7 +23,7 @@ class BirthdayPickerPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Select birthday dialog not shown"
-        self.capture_step("birthday_picker", "Select birthday dialog is visible")
+        self.capture_step("birthday_picker")
 
     # ================= wheel plumbing =================
     def _find_now(self, locator):
@@ -100,15 +100,15 @@ class BirthdayPickerPage(AndroidBasePage):
 
     def tap_confirm(self):
         self.click(L.button_confirm)
-        self.capture_step("birthday_confirm", "Tapped Confirm")
+        self.capture_step("birthday_confirm")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("birthday_back", "Closed birthday picker")
+        self.capture_step("birthday_back")
 
     def dismiss(self):
         self.click(L.scrim)
-        self.capture_step("birthday_dismiss", "Dismissed birthday picker")
+        self.capture_step("birthday_dismiss")
 
     # ================= scenario =================
     @staticmethod

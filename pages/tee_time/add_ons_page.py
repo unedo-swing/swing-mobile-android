@@ -7,7 +7,7 @@ class AddOnsPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Select add-ons sheet not shown"
-        self.capture_step("select_addons", "Select add-ons sheet is visible")
+        self.capture_step("select_addons")
 
     def verify_addon(self, name: str):
         assert self.is_visible(L.addon_row_by_name % name), f"Add-on '{name}' not shown"
@@ -34,8 +34,8 @@ class AddOnsPage(AndroidBasePage):
 
     def tap_save(self):
         self.click(L.button_save)
-        self.capture_step("save_addons", "Tapped Save add-ons")
+        self.capture_step("save_addons")
 
     def tap_cancel(self):
         self.click(L.button_cancel)
-        self.capture_step("cancel_addons", "Tapped Cancel")
+        self.capture_step("cancel_addons")

@@ -7,7 +7,7 @@ from utils.pdf_reporter import init_pdf, generate_pdf
 @pytest.mark.android
 class TestOnboarding:
 
-    @pytest.mark.app_state('reinstall')
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
     @pytest.mark.parametrize("TC_ID", ["TC_ONB_00001"])
     def test_onboarding_without_referreral_code(self, TC_ID, login_flow, onboarding_flow):
@@ -24,13 +24,14 @@ class TestOnboarding:
         onboarding_flow.tap_next()
         onboarding_flow.choose_source(D.SOURCE)
         onboarding_flow.tap_finish()
+        onboarding_flow.allow_permissions()
         onboarding_flow.verify_whats_new()
         onboarding_flow.close_whats_new()
         onboarding_flow.verify_coach_marks()
         onboarding_flow.verify_home()
         generate_pdf(pdf)
 
-    @pytest.mark.app_state('reinstall')
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
     @pytest.mark.parametrize("TC_ID", ["TC_ONB_00002"])
     def test_onboarding_with_referreral_code(self, TC_ID, login_flow, onboarding_flow,
@@ -48,13 +49,15 @@ class TestOnboarding:
         onboarding_flow.tap_next()
         onboarding_flow.choose_source(D.SOURCE)
         onboarding_flow.tap_finish()
+        onboarding_flow.allow_permissions()
         onboarding_flow.verify_whats_new()
         onboarding_flow.close_whats_new()
         onboarding_flow.verify_coach_marks()
         onboarding_flow.verify_home()
         swing_credits_flow.open_swing_credits()
         swing_credits_flow.open_history()
-        swing_credits_flow.verify_referral_reward()
+        swing_credits_flow.verify_credit_using_referral()
         swing_credits_flow.go_back_to_home()
         logout_flow.logout()
+        
         generate_pdf(pdf)

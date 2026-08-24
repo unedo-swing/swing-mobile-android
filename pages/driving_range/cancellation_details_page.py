@@ -10,7 +10,7 @@ class DrivingRangeCancellationDetailsPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Cancellation details screen not shown"
-        self.capture_step("dr_cancellation_details", "Cancellation details screen is visible")
+        self.capture_step("dr_cancellation_details")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -68,23 +68,37 @@ class DrivingRangeCancellationDetailsPage(AndroidBasePage):
 
     def verify_refund_details(self, original_total=None, total_refund=None,
                               bank_name=None, account_number=None, account_holder_name=None):
+        
+        actual = {
+        "Original": self.get_original_total(),
+        "Refund": self.get_total_refund(),
+        "Bank": self.get_bank_name(),
+        "Acct": self.get_account_number(),
+        "Holder": self.get_account_holder_name(),
+        }
+
         self.capture_step(
             "dr_cancel_details_verify",
-            f"Bank={self.get_bank_name()} | Acct={self.get_account_number()} | "
-            f"Holder={self.get_account_holder_name()} | "
-            f"Original={self.get_original_total()} | Refund={self.get_total_refund()}",
+            " | ".join(f"{k}={v}" for k, v in actual.items()),
         )
-        if original_total is not None:
-            assert original_total in self.get_original_total()
-        if total_refund is not None:
-            assert total_refund in self.get_total_refund()
-        if bank_name is not None:
-            assert bank_name in self.get_bank_name()
-        if account_number is not None:
-            assert account_number in self.get_account_number()
-        if account_holder_name is not None:
-            assert account_holder_name in self.get_account_holder_name()
+
+        expected = {
+            "Original": original_total,
+            "Refund": total_refund,
+            "Bank": bank_name,
+            "Acct": account_number,
+            "Holder": account_holder_name,
+        }
+        
+        failures = [
+            f"{k}: expected {exp!r} in actual {actual[k]!r}"
+            for k, exp in expected.items()
+            if exp is not None and exp not in actual[k]
+        ]
+        
+        
+        assert not failures, "Refund detail mismatch -> " + "; ".join(failures)
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_cancel_details_back", "Tapped back")
+        self.capture_step("dr_cancel_details_back")

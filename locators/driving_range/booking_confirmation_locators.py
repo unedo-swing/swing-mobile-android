@@ -44,10 +44,7 @@ class DrivingRangeBookingConfirmationLocators:
     # --- promo (single, auto-applied for the booking).
     # The promo card is the only clickable row in the scroll view with a leading icon and
     # a trailing chevron; it reads the promo name, or "Apply a promo" when none is set. ---
-    button_change_promo = (
-        '//android.widget.ScrollView//android.view.View'
-        '[@clickable="true" and count(android.widget.ImageView)=2]'
-    )
+    button_change_promo = '//android.view.View[contains(@content-desc,"Price details")]/following-sibling::android.view.View[2]'
 
     # --- swing credits ---
     # once the toggle is on, the redeemed amount joins the price breakdown
@@ -65,7 +62,8 @@ class DrivingRangeBookingConfirmationLocators:
     label_credits_earned = '//android.view.View[starts-with(@content-desc,"+ ")]'
     button_pay_now = '//android.widget.ImageView[@content-desc="Pay now"]'
     
-    toaster_minimum_balls = (
-            '//android.widget.ImageView[contains(@content-desc,"Minimum")'
-            ' and contains(@content-desc,"for booking with")]'
-        )
+    toaster_minimum_balls = ('//android.widget.ImageView[contains(@content-desc,"Minimum") and contains(@content-desc,"for booking with")]')
+    button_proceed_to_pay = '//android.widget.Button[@resource-id="proceed-button"]'
+    label_verification_required = '//android.view.View[@content-desc="Verification required"]'
+    label_pending_approval = '//android.view.View[@content-desc="Pending approval"]'
+    

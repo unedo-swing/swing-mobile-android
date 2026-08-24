@@ -11,7 +11,7 @@ class DrivingRangeRescheduleSuccessPage(AndroidBasePage):
         # the reschedule payment settles behind a spinner before this draws
         self.wait_until_loaded(timeout=120)
         assert self.is_visible(L.label_title, timeout=30), "Booking rescheduled screen not shown"
-        self.capture_step("dr_reschedule_success", "Booking rescheduled screen is visible")
+        self.capture_step("dr_reschedule_success")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -72,8 +72,8 @@ class DrivingRangeRescheduleSuccessPage(AndroidBasePage):
     # ================= action steps =================
     def tap_finish(self):
         self.click(L.button_finish)
-        self.capture_step("dr_reschedule_finish", "Tapped Finish")
+        self.capture_step("dr_reschedule_finish")
 
     def tap_see_booking_details(self):
         self.click(L.button_see_details)
-        self.capture_step("dr_reschedule_see_details", "Tapped See booking details")
+        self.capture_step("dr_reschedule_see_details")

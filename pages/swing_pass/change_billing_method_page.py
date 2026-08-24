@@ -4,24 +4,22 @@ from locators.swing_pass.change_billing_method_locators import ChangeBillingMeth
 
 class ChangeBillingMethodPage(AndroidBasePage):
 
-    # The dict key each membership field maps to in get_details().
     FIELDS = {
         "player_name": L.FIELD_PLAYER_NAME,
         "renew_date": L.FIELD_RENEW_DATE,
         "membership_id": L.FIELD_MEMBERSHIP_ID,
     }
 
-    # ================= verify steps =================
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Change billing method screen not shown"
-        self.capture_step("change_method", "Change billing method screen is visible")
+        self.capture_step("change_method")
 
     def verify_no_method_selected(self):
         method = self.get_selected_method()
         assert method == L.PLACEHOLDER_METHOD, \
             f"Expected no method picked, but the row reads '{method}'"
-        self.capture_step("change_method_empty", "No billing method picked yet")
+        self.capture_step("change_method_empty")
 
     def verify_selected_method(self, expected: str):
         actual = self.get_selected_method()
@@ -33,7 +31,6 @@ class ChangeBillingMethodPage(AndroidBasePage):
         assert actual == accepted, \
             f"Terms checkbox is {'on' if actual else 'off'}, expected {'on' if accepted else 'off'}"
 
-    # ================= reading =================
     def _desc(self, locator) -> str:
         return self.scroll_and_find(locator).get_attribute("content-desc") or ""
 
@@ -58,14 +55,13 @@ class ChangeBillingMethodPage(AndroidBasePage):
     def is_terms_accepted(self) -> bool:
         return self.scroll_and_find(L.checkbox_terms).get_attribute("checked") == "true"
 
-    # ================= action steps =================
     def open_method_picker(self):
         self.click(L.button_select)
-        self.capture_step("change_method_picker", "Opened Select billing method")
+        self.capture_step("change_method_picker")
 
     def toggle_terms(self):
         self.click(L.checkbox_terms)
-        self.capture_step("change_method_terms_toggled", "Toggled the terms checkbox")
+        self.capture_step("change_method_terms_toggled")
 
     def set_terms(self, accepted: bool = True):
         if self.is_terms_accepted() == accepted:
@@ -81,13 +77,13 @@ class ChangeBillingMethodPage(AndroidBasePage):
 
     def open_terms(self):
         self.click(L.link_terms)
-        self.capture_step("change_method_open_terms", "Opened Swing Pass terms & conditions")
+        self.capture_step("change_method_open_terms")
 
     def slide_to_confirm(self):
         self.slide_to_end(L.slider_confirm, L.slider_thumb)
         self.wait_until_loaded()
-        self.capture_step("change_method_confirm", "Slid to confirm the new billing method")
+        self.capture_step("change_method_confirm")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("change_method_back", "Left the Change billing method screen")
+        self.capture_step("change_method_back")

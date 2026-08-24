@@ -56,3 +56,8 @@ class BookingConfirmationLocators:
     # Swing Credits earned (tap to open the "Swing Credits earnings" dialog):
     label_credits_earned = '//android.view.View[starts-with(@content-desc,"+ ")]'
     button_pay_now = '//android.widget.ImageView[@content-desc="Pay now"]'
+
+    LABEL_MAX_PLAYER = ""
+    LABEL_MIN_PLAYER = ""
+    label_max_player = '//android.view.View[contains(@content-desc,"%s")]'
+    label_min_player = '//android.view.View[contains(@content-desc,"%s")]'

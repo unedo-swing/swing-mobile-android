@@ -4,14 +4,12 @@ from locators.swing_pass.select_billing_method_locators import SelectBillingMeth
 
 class SelectBillingMethodPage(AndroidBasePage):
 
-    # what the wallet rows append to their name, e.g. "OVO Connect"
     CONNECT_SUFFIX = " Connect"
 
-    # ================= verify steps =================
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Select billing method screen not shown"
-        self.capture_step("select_method", "Select billing method screen is visible")
+        self.capture_step("select_method")
 
     def verify_sections(self):
         missing = [name for name, locator in (("Credit cards", L.label_credit_cards),
@@ -36,7 +34,6 @@ class SelectBillingMethodPage(AndroidBasePage):
         assert len(cards) == expected, \
             f"{len(cards)} saved card(s) listed, expected {expected}"
 
-    # ================= reading =================
     def get_cards(self) -> list:
         cards = [
             e.get_attribute("content-desc") or ""
@@ -59,7 +56,6 @@ class SelectBillingMethodPage(AndroidBasePage):
     def get_card(self, index: int = 1) -> str:
         return self.scroll_and_find(L.card_at % index).get_attribute("content-desc") or ""
 
-    # ================= action steps =================
     def select_card(self, index: int = 1):
         label = self.get_card(index)
         self.click(L.card_at % index)
@@ -71,7 +67,7 @@ class SelectBillingMethodPage(AndroidBasePage):
 
     def tap_add_credit_card(self):
         self.click(L.button_add_card)
-        self.capture_step("select_method_add_card", "Tapped Add credit card")
+        self.capture_step("select_method_add_card")
 
     def connect_wallet(self, name: str):
         self.click(L.button_connect_by_wallet % name)
@@ -79,4 +75,4 @@ class SelectBillingMethodPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("select_method_back", "Left the Select billing method screen")
+        self.capture_step("select_method_back")

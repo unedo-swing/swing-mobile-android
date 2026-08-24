@@ -7,7 +7,7 @@ class NationalityPickerPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Select nationality dialog not shown"
-        self.capture_step("nationality_picker", "Select nationality dialog is visible")
+        self.capture_step("nationality_picker")
 
     def is_option_shown(self, name: str) -> bool:
         return self.is_visible(L.option_exact % name, timeout=5)
@@ -28,8 +28,8 @@ class NationalityPickerPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("nationality_back", "Closed nationality picker")
+        self.capture_step("nationality_back")
 
     def dismiss(self):
         self.click(L.scrim)
-        self.capture_step("nationality_dismiss", "Dismissed nationality picker")
+        self.capture_step("nationality_dismiss")

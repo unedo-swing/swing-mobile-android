@@ -31,8 +31,7 @@ class HomeLocators:
     card_swing_pass = (
         '//*[contains(@content-desc,"Renews on") or contains(@content-desc,"Ends on")]'
     )
-    label_credits = '//*[contains(@content-desc,"credits")]'
-    # shown INSTEAD of the card while the account has no Pass
+    label_credits = '(//*[contains(@content-desc,"credits")]/android.widget.ImageView)[last()]'
     button_join_swing_pass = '//android.view.View[@content-desc="Join Swing Pass"]'
     
 

@@ -1,12 +1,7 @@
-import re
-
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.booking_confirmed_locators import BookingConfirmedLocators as L
-
-
-def _amount(text: str) -> str:
-    m = re.search(r"Rp\.\s?[\d.,]+", text or "")
-    return m.group(0) if m else ""
+from utils.amounts import last_amount
+from utils.summary import assert_summary
 
 
 class BookingConfirmedPage(AndroidBasePage):
@@ -14,7 +9,7 @@ class BookingConfirmedPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Booking confirmed screen not shown"
-        self.capture_step("booking_confirmed", "Booking confirmed ('You're confirmed!') is visible")
+        self.capture_step("booking_confirmed")
 
     def _desc(self, locator) -> str:
         return self.find(locator).get_attribute("content-desc") or ""
@@ -37,13 +32,53 @@ class BookingConfirmedPage(AndroidBasePage):
         return self._desc(L.value_no_of_players)
 
     def get_total(self) -> str:
-        return _amount(self._desc(L.value_total))
+        return last_amount(self._desc(L.value_total))
 
     def get_payment_method(self) -> str:
         return self._desc(L.value_payment_method)
 
     def get_credits_earned(self) -> str:
         return self._desc(L.value_credits_earned)
+
+    # ---- summary snapshot / verify ----
+    def get_summary(self) -> dict:
+        return {
+            "Booking": self._read(self.get_booking_id),
+            "Date": self._read(self.get_date),
+            "Session": self._read(self.get_session),
+            "Time": self._read(self.get_preferred_time),
+            "Players": self._read(self.get_no_of_players),
+            "Total": self._read(self.get_total),
+            "Payment": self._read(self.get_payment_method),
+        }
+
+    def _read(self, getter) -> str:
+        try:
+            return getter()
+        except Exception:
+            return ""
+
+    def verify_booking_summary(self, booking_id=None, date=None, session=None,
+                               preferred_time=None, players=None, total=None,
+                               payment_method=None):
+        actual = self.get_summary()
+
+        self.capture_step(
+            "tt_confirmed_verify",
+            " | ".join(f"{k}={v}" for k, v in actual.items() if v),
+        )
+
+        expected = {
+            "Booking": booking_id,
+            "Date": date,
+            "Session": session,
+            "Time": preferred_time,
+            "Players": players,
+            "Total": total,
+            "Payment": payment_method,
+        }
+
+        assert_summary("Confirmed booking", expected, actual)
 
     # ---- combined verify ----
     def verify_confirmed_details(self, course_name: str | None = None, date: str | None = None,
@@ -88,8 +123,8 @@ class BookingConfirmedPage(AndroidBasePage):
     # ================= action steps =================
     def tap_finish(self):
         self.click(L.button_finish)
-        self.capture_step("finish", "Tapped Finish")
+        self.capture_step("finish")
 
     def tap_see_booking_details(self):
         self.click(L.button_see_booking_details)
-        self.capture_step("see_booking_details", "Tapped See booking details")
+        self.capture_step("see_booking_details")

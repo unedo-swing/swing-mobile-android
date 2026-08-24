@@ -7,7 +7,7 @@ class ProfileSetupPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_welcome, timeout=30), "Profile setup screen not shown"
-        self.capture_step("onboarding_profile_setup", "Profile setup screen is visible")
+        self.capture_step("onboarding_profile_setup")
 
     def is_next_enabled(self) -> bool:
         return self.is_enabled(L.button_next)
@@ -78,21 +78,21 @@ class ProfileSetupPage(AndroidBasePage):
     # ================= picker fields =================
     def open_birthday_picker(self):
         self.click(L.field_birthday)
-        self.capture_step("onboarding_birthday_open", "Opened birthday picker")
+        self.capture_step("onboarding_birthday_open")
 
     def open_nationality_picker(self):
         self.click(L.field_nationality)
-        self.capture_step("onboarding_nationality_open", "Opened nationality picker")
+        self.capture_step("onboarding_nationality_open")
 
     def open_gender_picker(self):
         self.click(L.field_gender)
-        self.capture_step("onboarding_gender_open", "Opened gender picker")
+        self.capture_step("onboarding_gender_open")
 
     # ================= submit =================
     def tap_next(self):
         self.hide_keyboard()
         self.click(L.button_next)
-        self.capture_step("onboarding_next", "Tapped Next")
+        self.capture_step("onboarding_next")
 
     def fill_names(self, first_name: str, last_name: str):
         self.enter_first_name(first_name)

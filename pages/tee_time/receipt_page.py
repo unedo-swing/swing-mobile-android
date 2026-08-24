@@ -14,7 +14,7 @@ class ReceiptPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Receipt screen not shown"
-        self.capture_step("receipt", "Receipt screen is visible")
+        self.capture_step("receipt")
 
     def _desc(self, locator) -> str:
         return self.find(locator).get_attribute("content-desc") or ""
@@ -96,12 +96,12 @@ class ReceiptPage(AndroidBasePage):
     # ================= action steps =================
     def tap_contact_support(self):
         self.click(L.button_contact_support)
-        self.capture_step("contact_support", "Tapped Contact Swing support")
+        self.capture_step("contact_support")
 
     def tap_send_receipt(self):
         self.click(L.button_send_receipt)
-        self.capture_step("send_receipt", "Tapped Send receipt")
+        self.capture_step("send_receipt")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("receipt_back", "Tapped back")
+        self.capture_step("receipt_back")

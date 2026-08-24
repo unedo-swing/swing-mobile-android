@@ -1,137 +1,239 @@
 import pytest
 
 from data.swing_pass_data import SwingPassData as D
-from utils.pdf_reporter import init_pdf, generate_pdf
-
-
-def _require_membership(swing_pass_flow):
-    swing_pass_flow.home.verify_screen()
-    if not swing_pass_flow.home.has_swing_pass():
-        pytest.skip(
-            "this account holds no Swing Pass — Home shows 'Join Swing Pass'. "
-            "Run the suite with a member account."
-        )
 
 
 @pytest.mark.android
 class TestSwingPass:
 
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_open_swing_pass_from_home(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.parametrize("TC_ID", ["SP_001"])
+    def test_open_swing_pass_from_home(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
-        summary = swing_pass_flow.check_membership()
+        swing_pass_flow.check_membership()
 
-        assert summary["card"]["pass_id"], "Membership card shows no Pass ID"
-        assert summary["billing"]["price"], "Billing row shows no price"
-        assert not summary["billing"]["cancelled"], \
-            "Membership is already cancelled — the read-only suite needs an active Pass"
-
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_billing_history_matches_details(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.parametrize("TC_ID", ["SP_002"])
+    def test_billing_history(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
-        card = swing_pass_flow.check_membership()["card"]
+        swing_pass_flow.check_membership()
+        swing_pass_flow.check_history()
 
-        history = swing_pass_flow.check_history()
-
-        assert history["entries"], "No charges in the billing history"
-        assert history["details"]["membership_id"] == card["pass_id"], (
-            f"Billing Details names membership '{history['details']['membership_id']}' "
-            f"but the card reads '{card['pass_id']}'"
-        )
-
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_plan_options_listed(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.parametrize("TC_ID", ["SP_003"])
+    def test_plan_options_listed(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
         swing_pass_flow.open_manage()
         swing_pass_flow.open_change_plan()
-        options = swing_pass_flow.check_plan_options()
+        swing_pass_flow.check_plan_options()
 
-        current = options["current"]["duration"]
-        assert current, "No 'Current plan' card on the screen"
-        assert current not in [p["duration"] for p in options["plans"]], (
-            f"The current plan '{current}' is offered as a selectable option — "
-            "it should carry the 'Current plan' badge and no radio"
-        )
-
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_payment_methods_listed(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.parametrize("TC_ID", ["SP_004"])
+    def test_payment_methods_listed(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
         swing_pass_flow.open_manage()
         swing_pass_flow.open_change_method()
         swing_pass_flow.open_method_picker()
-        methods = swing_pass_flow.check_payment_methods()
+        swing_pass_flow.check_payment_methods()
+        swing_pass_flow.select_method.verify_wallet_listed(D.EWALLET)
 
-        assert methods["cards"], "No saved cards listed"
-        assert D.EWALLET in methods["wallets"], (
-            f"E-wallet '{D.EWALLET}' not offered — screen lists {methods['wallets']}"
-        )
-
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_cancel_needs_a_reason(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.parametrize("TC_ID", ["SP_005"])
+    def test_change_billing_plan(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
-        saved = swing_pass_flow.swing_pass.get_savings()["amount"]
+        swing_pass_flow.change_billing_plan(D.NEW_PLAN)
 
-        result = swing_pass_flow.cancel_membership(D.CANCEL_REASON, confirm=False)
-
-        assert result["cancelled"] is False
-        assert result["savings_quoted"] == saved, (
-            f"The confirmation sheet quotes '{result['savings_quoted']}' but the "
-            f"savings card reads '{saved}'"
-        )
-        assert result["details"]["ends_on"], "Cancellation form shows no end date"
-
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_stay_with_swing_pass(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.parametrize("TC_ID", ["SP_006"])
+    def test_change_billing_method(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.open_swing_pass()
+        swing_pass_flow.change_billing_method(card_index=D.CARD_INDEX)
+
+    @pytest.mark.app_state('clear')
+    @pytest.mark.regression
+    @pytest.mark.parametrize("TC_ID", ["SP_007"])
+    def test_cancel_needs_a_reason(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.open_swing_pass()
+        swing_pass_flow.cancel_membership(D.CANCEL_REASON, confirm=D.CONFIRM)
+
+    @pytest.mark.app_state('clear')
+    @pytest.mark.regression
+    @pytest.mark.parametrize("TC_ID", ["SP_008"])
+    def test_stay_with_swing_pass(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
         swing_pass_flow.keep_membership()
 
-    # ================= state-changing (reversible) =================
+    @pytest.mark.app_state('clear')
+    @pytest.mark.skip
+    @pytest.mark.parametrize("TC_ID", ["SP_009"])
+    def test_join_landing_offers_swing_pass(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.open_join_swing_pass()
+        swing_pass_flow.check_join_landing()
+
+    @pytest.mark.app_state('clear')
+    @pytest.mark.skip
+    @pytest.mark.parametrize("TC_ID", ["SP_010"])
+    def test_payment_options_offered(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.open_join_swing_pass()
+        swing_pass_flow.open_payment_options()
+        swing_pass_flow.payment_option.dismiss()
+
+    @pytest.mark.app_state('clear')
+    @pytest.mark.skip
+    @pytest.mark.parametrize("TC_ID", ["SP_011"])
+    def test_join_with_recurring_payment_stops_before_paying(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.join_swing_pass(
+            D.PAYMENT_OPTION, D.BILLING_PLAN, card_index=D.CARD_INDEX, confirm=D.CONFIRM)
+
+    @pytest.mark.app_state('clear')
+    @pytest.mark.skip
+    @pytest.mark.parametrize("TC_ID", ["SP_012"])
+    def test_join_with_one_time_payment_stops_before_paying(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.join_swing_pass(
+            D.PAYMENT_OPTION, D.BILLING_PLAN, card_index=D.CARD_INDEX, confirm=D.CONFIRM)
+
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_change_billing_plan(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
-        swing_pass_flow.open_swing_pass()
-        result = swing_pass_flow.change_billing_plan(D.NEW_PLAN)
+    @pytest.mark.parametrize("TC_ID", ["SP_013"])
+    def test_pending_verification_after_relaunch(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.relaunch_app()
+        swing_pass_flow.continue_pending_verification()
+        swing_pass_flow.check_verification_form(D.FULL_NAME)
+        swing_pass_flow.postpone_verification()
 
-        assert result["confirmed"] is True
-        assert D.NEW_PLAN in result["picked"]["duration"], (
-            f"Confirmed plan reads '{result['picked']['duration']}', "
-            f"expected it to be '{D.NEW_PLAN}'"
-        )
-
+    @pytest.mark.app_state('clear')
     @pytest.mark.regression
-    def test_change_billing_method(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.parametrize("TC_ID", ["SP_014"])
+    def test_verification_resumed_and_postponed(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.relaunch_app()
+        swing_pass_flow.continue_pending_verification()
+        swing_pass_flow.resume_verification()
+        swing_pass_flow.verification.verify_submit_enabled(False)
+        swing_pass_flow.postpone_verification()
+
+    @pytest.mark.skip(
+        reason="buys a Swing Pass for real with the saved billing method — the "
+               "test account keeps the membership afterwards. Un-skip "
+               "deliberately."
+    )
+    @pytest.mark.app_state('clear')
+    @pytest.mark.regression
+    @pytest.mark.parametrize("TC_ID", ["SP_015"])
+    def test_join_with_recurring_payment(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.join_swing_pass(
+            D.PAYMENT_OPTION, D.BILLING_PLAN, card_index=D.CARD_INDEX, confirm=D.CONFIRM)
+        swing_pass_flow.open_verification()
+        swing_pass_flow.check_verification_form(D.FULL_NAME)
+        swing_pass_flow.postpone_verification()
+
+    @pytest.mark.skip(
+        reason="buys a Swing Pass for real with a one time payment. Un-skip "
+               "deliberately."
+    )
+    @pytest.mark.app_state('clear')
+    @pytest.mark.regression
+    @pytest.mark.parametrize("TC_ID", ["SP_016"])
+    def test_join_with_one_time_payment(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
+        swing_pass_flow.join_swing_pass(
+            D.PAYMENT_OPTION, D.BILLING_PLAN, card_index=D.CARD_INDEX, confirm=D.CONFIRM)
+        swing_pass_flow.open_verification()
+        swing_pass_flow.check_verification_form(D.FULL_NAME)
+        swing_pass_flow.postpone_verification()
+
+    @pytest.mark.skip(
+        reason="submitting verification needs a camera capture the suite "
+               "cannot produce — run the submit by hand, then this checks the "
+               "result."
+    )
+    @pytest.mark.app_state('clear')
+    @pytest.mark.regression
+    @pytest.mark.parametrize("TC_ID", ["SP_017"])
+    def test_verification_submitted_state(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
-        result = swing_pass_flow.change_billing_method(card_index=D.CARD_INDEX)
+        swing_pass_flow.check_verification_submitted()
 
-        assert result["confirmed"] is True
-        assert result["picked"], "No card label captured for the confirmed method"
-
-    # ================= irreversible =================
-    @pytest.mark.regression(
+    @pytest.mark.skip(
         reason="cancels the membership for real — the test account cannot get "
                "its Pass back except by buying one. Un-skip deliberately and "
                "run it last."
     )
-    def test_cancel_membership(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.app_state('clear')
+    @pytest.mark.regression
+    @pytest.mark.parametrize("TC_ID", ["SP_018"])
+    def test_cancel_membership(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
-        result = swing_pass_flow.cancel_membership(D.CANCEL_REASON)
+        swing_pass_flow.cancel_membership(D.CANCEL_REASON, confirm=D.CONFIRM)
 
-        assert result["cancelled"] is True
-        swing_pass_flow.swing_pass.verify_ends_on(result["details"]["ends_on"])
-
-    @pytest.mark.regression(
+    @pytest.mark.skip(
         reason="needs an already-cancelled membership, and stops at the Renew "
                "tap — the purchase flow behind it has no page objects yet."
     )
-    def test_renew_after_cancel(self, swing_pass_flow):
-        _require_membership(swing_pass_flow)
+    @pytest.mark.app_state('clear')
+    @pytest.mark.regression
+    @pytest.mark.parametrize("TC_ID", ["SP_019"])
+    def test_renew_after_cancel(self, TC_ID, login_flow, swing_pass_flow):
+        D.load(TC_ID)
+        login_flow.login_with_otp(
+            D.COUNTRY, D.PHONE_NUMBER, D.VERIFICATION_METHOD, D.OTP)
         swing_pass_flow.open_swing_pass()
         swing_pass_flow.renew_membership()

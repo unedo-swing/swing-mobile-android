@@ -8,7 +8,7 @@ class SelectBankPage(AndroidBasePage):
 
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Select bank dialog not shown"
-        self.capture_step("select_bank", "Select bank dialog is visible")
+        self.capture_step("select_bank")
 
     def search_bank(self, query: str):
         self.type_text(L.input_search, query)
@@ -25,4 +25,4 @@ class SelectBankPage(AndroidBasePage):
 
     def dismiss(self):
         self.click(L.scrim)
-        self.capture_step("select_bank_dismiss", "Dismissed Select bank dialog")
+        self.capture_step("select_bank_dismiss")

@@ -5,6 +5,7 @@ __pycache__/
 # local env overlays (device serials, prod package); the .example files are tracked
 .env.prod
 .env.*.local
+.env.*.local
 my-env/
 .DS_Store
 .~lock.*#

@@ -1,5 +1,4 @@
 class ManageMembershipLocators:
-    # ================= rows =================
     ROW_BILLING_HISTORY = "See billing history"
     ROW_CHANGE_PLAN = "Change billing plan"
     ROW_CHANGE_METHOD = "Change billing method"
@@ -13,8 +12,5 @@ class ManageMembershipLocators:
     row_contact_support = row_by_label % ROW_CONTACT_SUPPORT
     row_cancel_membership = row_by_label % ROW_CANCEL_MEMBERSHIP
 
-    # ================= dismissing =================
-    # the unlabelled button at the foot of the sheet (Close)
     button_close = '//android.widget.Button[not(@content-desc) or @content-desc=""]'
-    # the dimmed area above the sheet; tapping it dismisses
     scrim = '//android.view.View[@content-desc="Scrim"]'

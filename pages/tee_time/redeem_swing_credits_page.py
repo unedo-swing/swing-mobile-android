@@ -7,7 +7,7 @@ class RedeemSwingCreditsPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.input_code, timeout=20), "Redeem Swing Credits sheet not shown"
-        self.capture_step("redeem_swing_credits", "Redeem Swing Credits sheet is visible")
+        self.capture_step("redeem_swing_credits")
 
     def is_redeem_enabled(self) -> bool:
         return self.is_enabled(L.button_redeem)
@@ -19,7 +19,7 @@ class RedeemSwingCreditsPage(AndroidBasePage):
 
     def tap_redeem(self):
         self.click(L.button_redeem)
-        self.capture_step("tap_redeem", "Tapped Redeem Swing Credits")
+        self.capture_step("tap_redeem")
 
     def redeem(self, code: str):
         self.enter_code(code)
@@ -27,8 +27,8 @@ class RedeemSwingCreditsPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("redeem_back", "Tapped back")
+        self.capture_step("redeem_back")
 
     def dismiss(self):
         self.click(L.scrim)
-        self.capture_step("redeem_dismiss", "Dismissed Redeem Swing Credits sheet")
+        self.capture_step("redeem_dismiss")

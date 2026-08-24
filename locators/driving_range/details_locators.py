@@ -80,7 +80,7 @@ class DrivingRangeDetailsLocators:
     # the promo strip scrolls horizontally — anchor it on the cards it holds.
     # "See all" is the tile past the last promo, so it only renders after the
     # strip is swiped left.
-    promo_carousel = promo_cards + '/ancestor::android.view.View[@scrollable="true"][1]'
+    promo_carousel = '(//android.view.View/android.view.View[@scrollable="true"])[2]' #'(//android.view.View[@content-desc="%s"]/following-sibling::android.view.View/android.view.View[@scrollable="true"])[1]'
     list_featured_promo = '//android.view.View[@content-desc="%s"]/following-sibling::android.view.View//android.view.View/android.widget.ImageView'
 
     # --- date strip (content-desc is "<DAY>\n<dd Mon>") ---
@@ -109,3 +109,7 @@ class DrivingRangeDetailsLocators:
 
     # --- book ---
     button_book_disabled = button_book + '[@enabled="false"]'
+    
+    list_swing_pass_exclusive_active = '//android.widget.ImageView[contains(@content-desc,"Swing Pass Exclusive")]/android.widget.ImageView[@content-desc="Active"]'
+    list_swing_pass_exclusive_join = '//android.widget.ImageView[contains(@content-desc,"Swing Pass Exclusive")]/android.widget.ImageView[@content-desc="Join"]'
+    

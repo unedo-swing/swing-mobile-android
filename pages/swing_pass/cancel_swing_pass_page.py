@@ -4,7 +4,6 @@ from locators.swing_pass.cancel_swing_pass_locators import CancelSwingPassLocato
 
 class CancelSwingPassPage(AndroidBasePage):
 
-    # The dict key each membership field maps to in get_details().
     FIELDS = {
         "player_name": L.FIELD_PLAYER_NAME,
         "cancel_date": L.FIELD_CANCEL_DATE,
@@ -22,11 +21,10 @@ class CancelSwingPassPage(AndroidBasePage):
         L.REASON_NO_PERKS,
     ]
 
-    # ================= verify steps =================
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Cancel Swing Pass screen not shown"
-        self.capture_step("cancel_pass", "Cancel Swing Pass screen is visible")
+        self.capture_step("cancel_pass")
 
     def verify_reasons(self):
         missing = [r for r in self.REASONS
@@ -38,11 +36,11 @@ class CancelSwingPassPage(AndroidBasePage):
     def verify_cancel_disabled(self):
         assert not self.is_cancel_enabled(), \
             "'Cancel membership' is enabled with no reason picked"
-        self.capture_step("cancel_pass_disabled", "Cancel membership is disabled")
+        self.capture_step("cancel_pass_disabled")
 
     def verify_cancel_enabled(self):
         assert self.is_cancel_enabled(), "'Cancel membership' is still disabled"
-        self.capture_step("cancel_pass_enabled", "Cancel membership is enabled")
+        self.capture_step("cancel_pass_enabled")
 
     def verify_reason_selected(self, reason: str):
         actual = self.get_selected_reason()
@@ -54,7 +52,6 @@ class CancelSwingPassPage(AndroidBasePage):
         actual = self.get_field(L.FIELD_ENDS_ON)
         assert actual == expected, f"Pass ends '{actual}', expected '{expected}'"
 
-    # ================= reading =================
     def get_field(self, label: str) -> str:
         return self.scroll_and_find(L.value_by_label % label).get_attribute("content-desc") or ""
 
@@ -85,7 +82,6 @@ class CancelSwingPassPage(AndroidBasePage):
     def is_cancel_enabled(self) -> bool:
         return self.is_enabled(L.button_cancel_membership)
 
-    # ================= action steps =================
     def select_reason(self, reason: str):
         self.click(L.reason_by_text % reason)
         assert self.is_reason_selected(reason), \
@@ -95,8 +91,8 @@ class CancelSwingPassPage(AndroidBasePage):
     def tap_cancel_membership(self):
         self.click(L.button_cancel_membership)
         self.wait_until_loaded()
-        self.capture_step("cancel_pass_confirm", "Tapped Cancel membership")
+        self.capture_step("cancel_pass_confirm")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("cancel_pass_back", "Left the Cancel Swing Pass screen")
+        self.capture_step("cancel_pass_back")

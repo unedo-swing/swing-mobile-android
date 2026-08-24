@@ -15,7 +15,7 @@ class SwingCreditsFlow(BaseFlow):
         self.history = self.page(HistoryPage)
         self.referral_details = self.page(ReferralRewardDetailsPage)
         self.cashbacks = self.page(CashbacksPage)
-        self.redeem = self.page(RedeemSwingCreditsPage)   # reused from tee_time
+        self.redeem = self.page(RedeemSwingCreditsPage)
 
     # ================= open =================
     def open_swing_credits(self):
@@ -119,18 +119,33 @@ class SwingCreditsFlow(BaseFlow):
         self.open_redeem_sheet()
         self.redeem.redeem(code)
 
-    # ================= end-to-end scenario =================
-    def check_history(self, allow_empty: bool = False) -> dict:
-        self.open_history()
-        earned = self.check_credits_earned(allow_empty=allow_empty)
-        used = self.check_credits_used(allow_empty=allow_empty)
-        self.history.capture_step(
-            "credits_history_summary",
-            f"{len(earned)} earned / {len(used)} used entr(y/ies) listed",
-            data={"earned": earned, "used": used},
-        )
-        return {"earned": earned, "used": used}
+    def verify_swing_credits_page(self) -> str:
+        self.credits.verify_screen()
+        balance = self.credits.get_balance()
+        self.credits.verify_redeem_section()
+        return balance
 
-    def open_and_check_history(self, allow_empty: bool = False) -> dict:
+    def verify_earned_credit(self, booking_code: str, total_credits: str = ""):
+        self.history.tap_filter_credit_earning()
+        self.history.verify_credit(booking_code, total_credits)
+
+    def verify_used_credit(self, booking_code: str, total_credits: str = ""):
+        self.history.tap_filter_credit_used()
+        self.history.verify_credit(booking_code, total_credits)
+
+    def check_earned_credit(self, booking_code: str, total_credits: str = ""):
         self.open_swing_credits()
-        return self.check_history(allow_empty=allow_empty)
+        self.open_history()
+        self.verify_earned_credit(booking_code, total_credits)
+
+    def check_used_credit(self, booking_code: str, total_credits: str = ""):
+        self.open_swing_credits()
+        self.open_history()
+        self.verify_used_credit(booking_code, total_credits)
+
+    def verify_credits(self, code_booking: str, tot_credits: str):
+        self.verify_earned_credit(code_booking, tot_credits)
+    
+    def verify_credit_using_referral(self):
+        self.history.select_filter(self.history.FILTERS[1])
+        self.history.verify_credit_using_referral()

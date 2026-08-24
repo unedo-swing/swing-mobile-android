@@ -9,7 +9,7 @@ class LoginPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_login_screen(self):
         assert self.is_visible(L.label_header, timeout=30), "Login (phone entry) screen not shown"
-        self.capture_step("login_screen", "Login screen is visible")
+        self.capture_step("login_screen")
 
     def verify_continue_enabled(self, expected: bool = True):
         actual = self.is_enabled(L.button_continue)
@@ -20,7 +20,7 @@ class LoginPage(AndroidBasePage):
 
     def verify_verification_method_screen(self):
         assert self.is_visible(L.label_verification_title), "Verification method screen not shown"
-        self.capture_step("verification_method", "Verification method screen is visible")
+        self.capture_step("verification_method")
 
     def await_otp_screen(self, timeout: int = 180, poll: int = 3) -> bool:
         import time
@@ -29,11 +29,11 @@ class LoginPage(AndroidBasePage):
         challenge_announced = False
         while time.time() < deadline:
             if self.is_visible(L.label_otp_title, timeout=1, log=False):
-                self.capture_step("otp_screen", "OTP entry screen is visible")
+                self.capture_step("otp_screen")
                 return True
             if not challenge_announced and self.is_visible(L.label_secure_challenge, timeout=1, log=False):
                 challenge_announced = True
-                self.capture_step("secure_challenge", "Cloudflare human-check shown")
+                self.capture_step("secure_challenge")
                 print(
                     "\n" + "=" * 64 +
                     "\n[secure challenge] 'Verify you are human' muncul."
@@ -42,7 +42,7 @@ class LoginPage(AndroidBasePage):
                     "\n" + "=" * 64
                 )
             time.sleep(poll)
-        self.capture_step("otp_screen_timeout", "OTP screen did not appear in time")
+        self.capture_step("otp_screen_timeout")
         return False
 
     def verify_otp_screen(self):
@@ -56,20 +56,14 @@ class LoginPage(AndroidBasePage):
     def tap_continue(self):
         self.hide_keyboard()
         self.click(L.button_continue)
-        self.capture_step("continue_tapped", "Tapped Continue")
+        self.capture_step("continue_tapped")
 
     def open_country_picker(self):
+        self.wait_for(3)
         self.click(L.button_country_code)
-        self.capture_step("country_picker_opened", "Opened country picker")
+        self.capture_step("country_picker_opened")
 
     def read_dial_code(self) -> str:
-        """The dial code of the country now selected: 'ID (+62)' -> '+62'.
-
-        Read off the login screen instead of being carried in test data, so the
-        OTP request always uses the code the app itself is about to use.
-        Returns "" when the button can't be read — the caller falls back to
-        SWING_DIAL_CODE.
-        """
         for locator in (L.label_country_code, L.button_country_code):
             try:
                 raw = self.get_text(locator)
@@ -80,16 +74,16 @@ class LoginPage(AndroidBasePage):
                 code = f"+{match.group(1)}"
                 self.capture_step("dial_code", f"Country code on the login screen: {code}")
                 return code
-        self.capture_step("dial_code_unread", "Could not read the country code from the screen")
+        self.capture_step("dial_code_unread")
         return ""
 
     def choose_sms(self):
         self.click(L.button_verification_sms)
-        self.capture_step("chose_sms", "Chose SMS verification")
+        self.capture_step("chose_sms")
 
     def choose_whatsapp(self):
         self.click(L.button_verification_whatsapp)
-        self.capture_step("chose_whatsapp", "Chose WhatsApp verification")
+        self.capture_step("chose_whatsapp")
 
     def enter_code(self, code: str):
         time.sleep(3)
@@ -108,13 +102,13 @@ class LoginPage(AndroidBasePage):
             f"\n[manual OTP] Menunggu hingga {timeout}s sampai layar OTP hilang..."
             "\n" + "=" * 64
         )
-        self.capture_step("waiting_manual_otp", "Waiting for the code to be entered manually on the device")
+        self.capture_step("waiting_manual_otp")
         deadline = time.time() + timeout
         while time.time() < deadline:
             if not self.is_visible(L.label_otp_title, timeout=1, log=False):
-                self.capture_step("otp_accepted", "OTP screen dismissed — login proceeded")
+                self.capture_step("otp_accepted")
                 print("[manual OTP] Layar OTP hilang — login lanjut.")
                 return True
             time.sleep(poll)
-        self.capture_step("otp_timeout", "Timed out waiting for manual OTP entry")
+        self.capture_step("otp_timeout")
         return False

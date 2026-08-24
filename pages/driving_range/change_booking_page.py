@@ -8,16 +8,16 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_change_booking, timeout=20), "Change Booking screen not shown"
-        self.capture_step("dr_change_booking", "Change Booking screen is visible")
+        self.capture_step("dr_change_booking")
 
     # ================= tabs =================
     def select_reschedule_tab(self):
         self.click(L.tab_reschedule)
-        self.capture_step("dr_change_tab_reschedule", "Selected Reschedule tab")
+        self.capture_step("dr_change_tab_reschedule")
 
     def select_cancellation_tab(self):
         self.click(L.tab_cancellation)
-        self.capture_step("dr_change_tab_cancellation", "Selected Cancellation tab")
+        self.capture_step("dr_change_tab_cancellation")
 
     def is_reschedule_tab_selected(self) -> bool:
         el = self.find_anywhere(L.tab_reschedule)
@@ -27,7 +27,7 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
     def verify_reschedule_policy(self):
         assert self.is_visible_after_scroll(L.label_reschedule_policy, timeout=15), \
             "Reschedule policy section not shown"
-        self.capture_step("dr_reschedule_policy", "Reschedule policy section is visible")
+        self.capture_step("dr_reschedule_policy")
 
     def get_policy_text(self) -> str:
         return self.scroll_and_find(L.label_policy_text).get_attribute("content-desc") or ""
@@ -47,7 +47,7 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
     def verify_cancellation_policy(self):
         assert self.is_visible_after_scroll(L.label_cancellation_policy, timeout=15), \
             "Cancellation policy section not shown"
-        self.capture_step("dr_cancellation_policy", "Cancellation policy section is visible")
+        self.capture_step("dr_cancellation_policy")
 
     def get_refund_tier(self, starts_with: str) -> str:
         return self.scroll_and_find(L.refund_tier_by_text % starts_with).get_attribute("content-desc") or ""
@@ -58,7 +58,7 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
 
     def tap_continue_cancel(self):
         self.click(L.button_continue_cancel)
-        self.capture_step("dr_continue_cancel", "Tapped Continue cancel")
+        self.capture_step("dr_continue_cancel")
 
     # ================= actions =================
     def is_continue_enabled(self) -> bool:
@@ -66,8 +66,8 @@ class DrivingRangeChangeBookingPage(AndroidBasePage):
 
     def tap_continue_reschedule(self):
         self.click(L.button_continue_reschedule)
-        self.capture_step("dr_continue_reschedule", "Tapped Continue reschedule")
+        self.capture_step("dr_continue_reschedule")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_change_booking_back", "Tapped back")
+        self.capture_step("dr_change_booking_back")

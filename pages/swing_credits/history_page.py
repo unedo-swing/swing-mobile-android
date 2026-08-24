@@ -1,5 +1,6 @@
 from core.android_base_page import AndroidBasePage
 from locators.swing_credits.history_locators import HistoryLocators as L
+import re
 
 
 class HistoryPage(AndroidBasePage):
@@ -10,7 +11,7 @@ class HistoryPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Swing Credits history screen not shown"
-        self.capture_step("credits_history", "Swing Credits history screen is visible")
+        self.capture_step("credits_history")
 
     def verify_filters(self):
         missing = [f for f in self.FILTERS if not self.is_visible(L.chip_by_label % f)]
@@ -18,7 +19,6 @@ class HistoryPage(AndroidBasePage):
                           else f"missing: {', '.join(missing)}")
         assert not missing, f"Filter chip(s) not shown: {missing}"
 
-    # ================= parsing =================
     @staticmethod
     def parse_entry(desc: str) -> dict:
         lines = [line.strip() for line in (desc or "").split("\n") if line.strip()]
@@ -74,7 +74,7 @@ class HistoryPage(AndroidBasePage):
         if element is None:
             return None
         entry = self.parse_entry(element.get_attribute("content-desc") or "")
-        self.capture_step("history_referral", "Referral reward entry", data=entry)
+        self.capture_step("history_referral", data=entry)
         return entry
 
     # ================= verify =================
@@ -109,16 +109,6 @@ class HistoryPage(AndroidBasePage):
     def verify_referral_reward(self, amount: str | None = None, referrer: str | None = None):
         entry = self.get_referral_reward()
         assert entry is not None, "No referral reward entry in the credits history"
-        # assert entry["direction"].casefold() == "earned", \
-        #     f"Referral reward reads '{entry['direction']}', expected 'earned'"
-        # if amount and amount.strip() != entry["amount"].strip():
-        #     raise AssertionError(
-        #         f"Referral reward is '{entry['amount']}', expected '{amount}'"
-        #     )
-        # if referrer and referrer.casefold() not in entry["type"].casefold():
-        #     raise AssertionError(
-        #         f"Referral reward reads '{entry['type']}', expected it to name '{referrer}'"
-        #     )
 
     def verify_date_group(self, date: str):
         assert self.find_anywhere(L.group_by_date % date) is not None, \
@@ -137,8 +127,40 @@ class HistoryPage(AndroidBasePage):
 
     def open_referral_reward(self):
         self.click(L.entry_referral)
-        self.capture_step("history_open_referral", "Opened the referral reward entry")
+        self.capture_step("history_open_referral")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("history_back", "Left the Swing Credits history screen")
+        self.capture_step("history_back")
+    
+    def tap_filter_credit_used(self):
+        self.click(L.chip_usage)
+        self.capture_step("Click Filter Swing Used")
+    
+    def tap_filter_credit_earning(self):
+        self.click(L.chip_earned)
+        self.capture_step("Click Filter Swing Earn")
+        
+    @staticmethod
+    def booking_code(value: str) -> str:
+        match = re.search(r"#([A-Za-z0-9_-]+)", value or "")
+        code = match.group(1) if match else (value or "").strip()
+        return f"#{code}" if code else ""
+
+    def verify_credit(self, code_booking: str, tot_credits: str = ""):
+        code = self.booking_code(code_booking)
+        assert code, f"No booking code to look for in '{code_booking}'"
+        entry = L.list_credit_by_booking_code % code
+        assert self.is_visible(entry), f"No Swing Credits entry for booking '{code}'"
+        desc = self._desc(entry)
+        self.capture_step("history_credit_entry", f"{code} | {desc}")
+        if tot_credits:
+            assert tot_credits in desc, (
+                f"Entry for '{code}' reads '{desc}', expected credits '{tot_credits}'"
+            )
+    
+    def verify_credit_using_referral(self):
+        assert self.is_visible(L.list_credit_by_reward_by_using_refferal), "Nothing Using The Refferal"
+    
+    def verify_credit_reward_for_referral(self):
+        assert self.is_visible(L.list_credit_by_reward_for_refferal), "Nothing Using Your Referral"

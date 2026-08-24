@@ -114,6 +114,19 @@ class AndroidBasePage(BasePage):
                 if els:
                     return els[0]
                 self._swipe_down()
+            return None
+        finally:
+            self.driver.implicitly_wait(settings.IMPLICIT_WAIT)
+    
+    def scroll_down_to_element(self, locator, max_swipes: int = 10):
+        by, value = self._resolve(locator)
+        self.driver.implicitly_wait(0)
+        try:
+            for _ in range(max_swipes):
+                els = self.driver.find_elements(by, value)
+                if els:
+                    return els[0]
+                self._swipe_up()
                 self.wait_for(1)
             return None
         finally:
@@ -132,9 +145,59 @@ class AndroidBasePage(BasePage):
         finally:
             self.driver.implicitly_wait(settings.IMPLICIT_WAIT)
 
-    def click(self, locator):
-        self.scroll_to_element(locator)
-        super().click(locator)
+    # Every click waits for the screen to settle first — Flutter publishes a
+    # node before the widget can take a tap, so an eager tap lands on nothing.
+    # Set CLICK_STABLE = False (or call click_now) where that wait is wasted.
+    CLICK_STABLE = True
+    CLICK_SETTLE_TIMEOUT = 10
+    CLICK_STABLE_TIMEOUT = 5
+
+    def click(self, locator, retries: int = 3, stable: bool | None = None):
+        if self.CLICK_STABLE if stable is None else stable:
+            self.wait_settled(self.CLICK_SETTLE_TIMEOUT)
+            self.scroll_to_element(locator)
+            self.wait_stable(locator, self.CLICK_STABLE_TIMEOUT)
+        else:
+            self.scroll_to_element(locator)
+        super().click(locator, retries)
+
+    def click_now(self, locator, retries: int = 3):
+        """Click without the settle/stable wait — for a screen already still."""
+        self.click(locator, retries, stable=False)
+
+    def click_when_stable(self, locator, timeout: int = 5, retries: int = 3):
+        """Kept for callers that ask for it explicitly; click() does this now."""
+        self.click(locator, retries, stable=True)
+
+    def wait_settled(self, timeout: int = 10):
+        """Wait out the spinner, then let the frame finish rendering."""
+        self.wait_until_loaded(timeout=timeout, stable_for=0.25)
+        time.sleep(0.15)
+
+    def wait_stable(self, locator, timeout: int = 5, stable_for: float = 0.25):
+        deadline = time.time() + timeout
+        previous, still_since = None, None
+        self.driver.implicitly_wait(0)
+        try:
+            while time.time() < deadline:
+                try:
+                    element = self.driver.find_element(*self._resolve(locator))
+                    rect = element.rect
+                except Exception:
+                    previous, still_since = None, None
+                    time.sleep(0.15)
+                    continue
+                if rect == previous:
+                    still_since = still_since or time.time()
+                    if time.time() - still_since >= stable_for:
+                        return element
+                else:
+                    previous, still_since = rect, None
+                time.sleep(0.15)
+        finally:
+            self.driver.implicitly_wait(settings.IMPLICIT_WAIT)
+        self._log(f"element still moving after {timeout}s")
+        return None
 
     def find_anywhere(self, locator, max_swipes: int = 10):
         element = self.scroll_to_element(locator, max_swipes)
@@ -149,8 +212,12 @@ class AndroidBasePage(BasePage):
         return self.is_visible(locator, timeout)
 
     def scroll_and_find(self, locator):
+        if self.is_visible(locator):
+            return self.find(locator)
         element = self.find_anywhere(locator)
-        return element if element is not None else self.find(locator)
+        if element is not None:
+            return element
+        return self.find(locator)
 
     # ------------------------------------------------------------------ #
     # Loading state
@@ -173,7 +240,7 @@ class AndroidBasePage(BasePage):
         finally:
             self.driver.implicitly_wait(settings.IMPLICIT_WAIT)
 
-    def wait_until_loaded(self, timeout: int = 10, stable_for: float = 0.5) -> bool:
+    def wait_until_loaded(self, timeout: int = 5, stable_for: float = 0.5) -> bool:
         deadline = time.time() + timeout
         clear_since = None
         while time.time() < deadline:
@@ -197,6 +264,24 @@ class AndroidBasePage(BasePage):
     def press_back(self):
         """Android hardware back button."""
         self.driver.back()
+
+    def wait_for_keyboard(self, timeout: int = 5) -> bool:
+        """Block until the soft keyboard is up. True when it showed in time.
+
+        The keyboard can come up before or after the field is filled, and the
+        Search (IME action) key is swallowed while it is still animating in —
+        so callers wait for it before pressing Search.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                if self.driver.is_keyboard_shown():
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.25)
+        self._log(f"keyboard not shown after {timeout}s")
+        return False
 
     def press_search(self):
         """Press the on-screen keyboard's Search (IME action) key to submit."""
@@ -237,13 +322,27 @@ class AndroidBasePage(BasePage):
         )
         self.driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, selector)
 
-    def accept_permission(self):
-        """Tap a system permission 'Allow' dialog if one is present."""
-        for rid in (
-            "com.android.permissioncontroller:id/permission_allow_button",
-            "com.android.packageinstaller:id/permission_allow_button",
-        ):
-            found = self.driver.find_elements(AppiumBy.ID, rid)
-            if found:
-                found[0].click()
-                return
+    PERMISSION_ALLOW_IDS = (
+        "com.android.permissioncontroller:id/permission_allow_button",
+        "com.android.packageinstaller:id/permission_allow_button",
+        # location asks for a scope instead of a plain "Allow"
+        "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
+        "com.android.permissioncontroller:id/permission_allow_one_time_button",
+    )
+
+    def accept_permission(self, timeout: int = 5) -> bool:
+        """Tap a system permission 'Allow' dialog if one shows up within ``timeout``."""
+        deadline = time.time() + timeout
+        while True:
+            for rid in self.PERMISSION_ALLOW_IDS:
+                found = self.driver.find_elements(AppiumBy.ID, rid)
+                if found:
+                    found[0].click()
+                    self.wait_settled()
+                    return True
+            if time.time() >= deadline:
+                return False
+            time.sleep(0.5)
+
+    def _desc(self, locator) -> str:
+        return self.scroll_and_find(locator).get_attribute("content-desc") or ""

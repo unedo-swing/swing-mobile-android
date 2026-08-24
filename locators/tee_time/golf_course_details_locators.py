@@ -13,7 +13,7 @@ class GolfCourseDetailsLocators:
     label_offer_valid = '//android.view.View[contains(@content-desc,"Offer valid until")]'
     # calendar icon next to the course name — fill %s with the course name:
     #   button_calender % '"Rainbow Hills Golf"'
-    button_calender = label_course_name + '/following-sibling::android.widget.ImageView[last() - 1 ]'
+    button_calender = label_course_name + '/following-sibling::android.widget.ImageView[last()]'
     # a day inside the opened calendar — fill %s with the date text:
     #   button_date_in_calender % '"29"'
     button_date_in_calender = '//android.view.View[contains(@content-desc,"%s")]'
@@ -62,3 +62,12 @@ class GolfCourseDetailsLocators:
     label_booking_summary = '//android.view.View[contains(@content-desc,"/ pax") and contains(@content-desc,"•")]'
     badge_cashback = '//android.widget.ImageView[contains(@content-desc,"Cashback")]'
     button_book = '//android.widget.Button[@content-desc="Book tee time"]'
+
+    promo_by_name = '//android.widget.ImageView[contains(@content-desc,"%s")]'
+    promo_cards = '//android.widget.ImageView[contains(@content-desc,"Swing Pass Exclusive")]'
+    button_promo_by_name = promo_by_name + '/ancestor::android.view.View[@clickable="true"][1]'
+    badge_active_by_promo = promo_by_name + '//android.widget.ImageView[@content-desc="Active"]'
+    badge_join_by_promo = promo_by_name + '//android.widget.ImageView[@content-desc="Join"]'
+    button_see_all_featured_promo = '//android.widget.ImageView[@content-desc="See all"]'
+    promo_carousel = '(//android.view.View/android.view.View[@scrollable="true"])[2]' #'(//android.view.View[@content-desc="%s"]/following-sibling::android.view.View/android.view.View[@scrollable="true"])[1]'
+    list_featured_promo = '//android.view.View[@content-desc="%s"]/following-sibling::android.view.View//android.view.View/android.widget.ImageView'

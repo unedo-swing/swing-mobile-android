@@ -4,11 +4,10 @@ from locators.swing_pass.billing_history_locators import BillingHistoryLocators 
 
 class BillingHistoryPage(AndroidBasePage):
 
-    # ================= verify steps =================
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Billing History screen not shown"
-        self.capture_step("billing_history", "Billing History screen is visible")
+        self.capture_step("billing_history")
 
     def verify_entry_count(self, expected: int):
         entries = self.get_entries()
@@ -30,7 +29,6 @@ class BillingHistoryPage(AndroidBasePage):
             )
         )
 
-    # ================= parsing =================
     @staticmethod
     def parse_entry(desc: str) -> dict:
         lines = [line.strip() for line in (desc or "").split("\n") if line.strip()]
@@ -45,7 +43,6 @@ class BillingHistoryPage(AndroidBasePage):
             entry["time"] = time.strip() if sep else ""
         return entry
 
-    # ================= reading =================
     def get_entries(self) -> list:
         entries = [
             self.parse_entry(e.get_attribute("content-desc") or "")
@@ -71,7 +68,6 @@ class BillingHistoryPage(AndroidBasePage):
         self.capture_step("billing_entry", f"Entry matching '{text}'", data=entry)
         return entry
 
-    # ================= action steps =================
     def open_entry(self, index: int = 1):
         self.click(L.entry_at % index)
         self.capture_step("billing_open_entry", f"Opened billing entry #{index}")
@@ -85,4 +81,4 @@ class BillingHistoryPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("billing_history_back", "Left the Billing History screen")
+        self.capture_step("billing_history_back")

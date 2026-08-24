@@ -4,18 +4,16 @@ from locators.swing_pass.change_billing_plan_locators import ChangeBillingPlanLo
 
 class ChangeBillingPlanPage(AndroidBasePage):
 
-    # The dict key each membership field maps to in get_details().
     FIELDS = {
         "player_name": L.FIELD_PLAYER_NAME,
         "renew_date": L.FIELD_RENEW_DATE,
         "membership_id": L.FIELD_MEMBERSHIP_ID,
     }
 
-    # ================= verify steps =================
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Change billing plan screen not shown"
-        self.capture_step("change_plan", "Change billing plan screen is visible")
+        self.capture_step("change_plan")
 
     def verify_plan_listed(self, duration: str):
         assert self.find_anywhere(L.plan_by_duration % duration) is not None, \
@@ -35,7 +33,6 @@ class ChangeBillingPlanPage(AndroidBasePage):
         assert actual == accepted, \
             f"Terms checkbox is {'on' if actual else 'off'}, expected {'on' if accepted else 'off'}"
 
-    # ================= parsing =================
     @staticmethod
     def parse_plan(desc: str) -> dict:
         lines = [line.strip() for line in (desc or "").split("\n") if line.strip()]
@@ -45,7 +42,6 @@ class ChangeBillingPlanPage(AndroidBasePage):
         durations = [line for line in lines if "month" in line and not line.startswith("Rp.")]
         if durations:
             plan["duration"] = durations[0]
-            # anything printed above the duration is a badge, e.g. "MOST POPULAR!"
             index = lines.index(durations[0])
             if index:
                 plan["badge"] = lines[0]
@@ -56,7 +52,6 @@ class ChangeBillingPlanPage(AndroidBasePage):
             plan["price"] = prices[0]
         return plan
 
-    # ================= reading =================
     def _desc(self, locator) -> str:
         return self.scroll_and_find(locator).get_attribute("content-desc") or ""
 
@@ -108,7 +103,6 @@ class ChangeBillingPlanPage(AndroidBasePage):
     def is_terms_accepted(self) -> bool:
         return self.scroll_and_find(L.checkbox_terms).get_attribute("checked") == "true"
 
-    # ================= action steps =================
     def select_plan(self, duration: str):
         self.click(L.plan_by_duration % duration)
         assert self.is_plan_selected(duration), \
@@ -117,7 +111,7 @@ class ChangeBillingPlanPage(AndroidBasePage):
 
     def toggle_terms(self):
         self.click(L.checkbox_terms)
-        self.capture_step("change_plan_terms_toggled", "Toggled the terms checkbox")
+        self.capture_step("change_plan_terms_toggled")
 
     def set_terms(self, accepted: bool = True):
         if self.is_terms_accepted() == accepted:
@@ -133,13 +127,13 @@ class ChangeBillingPlanPage(AndroidBasePage):
 
     def open_terms(self):
         self.click(L.link_terms)
-        self.capture_step("change_plan_open_terms", "Opened Swing Pass terms & conditions")
+        self.capture_step("change_plan_open_terms")
 
     def slide_to_confirm(self):
         self.slide_to_end(L.slider_confirm, L.slider_thumb)
         self.wait_until_loaded()
-        self.capture_step("change_plan_confirm", "Slid to confirm the new billing plan")
+        self.capture_step("change_plan_confirm")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("change_plan_back", "Left the Change billing plan screen")
+        self.capture_step("change_plan_back")

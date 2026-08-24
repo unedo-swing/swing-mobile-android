@@ -9,7 +9,7 @@ class DrivingRangeRescheduleBookingPage(AndroidBasePage):
         self.wait_until_loaded()
         assert self.is_visible(L.label_reschedule_booking, timeout=20), \
             "Reschedule booking screen not shown"
-        self.capture_step("dr_reschedule_booking", "Reschedule booking screen is visible")
+        self.capture_step("dr_reschedule_booking")
 
     # ================= original booking summary =================
     def _desc(self, locator) -> str:
@@ -45,8 +45,9 @@ class DrivingRangeRescheduleBookingPage(AndroidBasePage):
         self.capture_step("dr_reschedule_select_date", f"Selected date '{date}'")
 
     def open_calendar(self):
+        self._swipe_up()
         self.click(L.button_open_calender)
-        self.capture_step("dr_reschedule_open_calendar", "Opened calendar")
+        self.capture_step("dr_reschedule_open_calendar")
 
     # ================= time grid =================
     def is_time_available(self, time_text: str) -> bool:
@@ -63,11 +64,11 @@ class DrivingRangeRescheduleBookingPage(AndroidBasePage):
 
     def verify_confirm_enabled(self):
         assert self.is_confirm_enabled(), "Confirm new date & time is disabled"
-        self.capture_step("dr_reschedule_confirm_enabled", "Confirm new date & time is enabled")
+        self.capture_step("dr_reschedule_confirm_enabled")
 
     def tap_confirm_new_date(self):
         self.click(L.button_confirm_new_date)
-        self.capture_step("dr_reschedule_confirm_date", "Tapped Confirm new date & time")
+        self.capture_step("dr_reschedule_confirm_date")
 
     # ================= scenario =================
     def pick_new_slot(self, day, time_text: str):
@@ -78,4 +79,4 @@ class DrivingRangeRescheduleBookingPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_reschedule_booking_back", "Tapped back")
+        self.capture_step("dr_reschedule_booking_back")

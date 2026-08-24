@@ -7,7 +7,7 @@ class PromoPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Available promos screen not shown"
-        self.capture_step("available_promos", "Available promos screen is visible")
+        self.capture_step("available_promos")
 
     def verify_promo(self, name: str):
         assert self.is_visible(L.promo_by_name % name), f"Promo '{name}' not shown"
@@ -34,28 +34,28 @@ class PromoPage(AndroidBasePage):
 
     def remove_promo(self):
         self.click(L.button_remove_promo)
-        self.capture_step("remove_promo", "Tapped Remove promo")
+        self.capture_step("remove_promo")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("promo_back", "Tapped back")
+        self.capture_step("promo_back")
 
     # ================= "Add a Promo Code" dialog =================
     def open_add_promo_code(self):
         self.click(L.button_add_promo_code)
-        self.capture_step("open_add_promo", "Opened Add a Promo Code")
+        self.capture_step("open_add_promo")
 
     def verify_add_promo_dialog(self):
         assert self.is_visible(L.input_promo_code, timeout=15), "Add a Promo Code dialog not shown"
-        self.capture_step("add_promo_dialog", "Add a Promo Code dialog is visible")
+        self.capture_step("add_promo_dialog")
 
     def enter_promo_code(self, code: str):
-        self.fill(L.input_promo_code, code)
+        self.type_text(L.input_promo_code, code)
         self.capture_step("promo_code", f"Entered promo code '{code}'")
 
     def submit_promo_code(self):
         self.click(L.button_submit_promo)
-        self.capture_step("submit_promo", "Tapped Add Promo code")
+        self.capture_step("submit_promo")
 
     def add_promo_code(self, code: str):
         self.open_add_promo_code()

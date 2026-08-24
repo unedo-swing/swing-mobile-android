@@ -7,7 +7,7 @@ class CountryPickerPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=15), "Country picker screen not shown"
-        self.capture_step("country_picker", "Country picker screen is visible")
+        self.capture_step("country_picker")
 
     # ================= action steps =================
     def search(self, query: str):
@@ -25,4 +25,4 @@ class CountryPickerPage(AndroidBasePage):
 
     def go_back(self):
         self.click(L.button_back)
-        self.capture_step("country_back", "Closed country picker")
+        self.capture_step("country_back")

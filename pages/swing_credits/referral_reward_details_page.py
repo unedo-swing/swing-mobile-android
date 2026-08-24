@@ -10,7 +10,7 @@ class ReferralRewardDetailsPage(AndroidBasePage):
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), \
             "Referral reward details screen not shown"
-        self.capture_step("referral_reward_details", "Referral reward details screen is visible")
+        self.capture_step("referral_reward_details")
 
     # ================= reading values =================
     def _desc(self, locator) -> str:
@@ -36,7 +36,7 @@ class ReferralRewardDetailsPage(AndroidBasePage):
             "expiry": self.get_expiry(),
             "earned_on": self.get_earned_on(),
         }
-        self.capture_step("referral_reward_values", "Referral reward details", data=details)
+        self.capture_step("referral_reward_values", data=details)
         return details
 
     # ================= verify =================
@@ -76,13 +76,13 @@ class ReferralRewardDetailsPage(AndroidBasePage):
             "'Have a question?' section not shown"
         assert self.is_visible(L.button_contact_support), \
             "'Contact Swing support' row not shown"
-        self.capture_step("referral_support", "Support section is visible")
+        self.capture_step("referral_support")
 
     # ================= action steps =================
     def tap_contact_support(self):
         self.click(L.button_contact_support)
-        self.capture_step("referral_contact_support", "Tapped Contact Swing support")
+        self.capture_step("referral_contact_support")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("referral_details_back", "Left the referral reward details")
+        self.capture_step("referral_details_back")

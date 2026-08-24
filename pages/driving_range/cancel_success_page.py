@@ -9,7 +9,7 @@ class DrivingRangeCancelSuccessPage(AndroidBasePage):
         # the cancellation settles behind a spinner before this draws
         self.wait_until_loaded(timeout=120)
         assert self.is_visible(L.label_title, timeout=30), "Booking cancelled screen not shown"
-        self.capture_step("dr_cancel_success", "Booking cancelled screen is visible")
+        self.capture_step("dr_cancel_success")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -51,8 +51,8 @@ class DrivingRangeCancelSuccessPage(AndroidBasePage):
     # ================= action steps =================
     def tap_finish(self):
         self.click(L.button_finish)
-        self.capture_step("dr_cancel_finish", "Tapped Finish")
+        self.capture_step("dr_cancel_finish")
 
     def tap_see_cancellation_details(self):
         self.click(L.button_see_details)
-        self.capture_step("dr_cancel_see_details", "Tapped See cancellation details")
+        self.capture_step("dr_cancel_see_details")

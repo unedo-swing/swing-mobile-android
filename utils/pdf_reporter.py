@@ -29,7 +29,6 @@ without a PDF.
 """
 import io
 import os
-import tempfile
 from datetime import datetime
 from xml.sax.saxutils import escape
 
@@ -49,7 +48,6 @@ from reportlab.platypus import (
 )
 
 from config import settings
-from utils import allure_reporter
 
 
 # Feature prefixes used in capture_step slugs -> readable labels.
@@ -169,8 +167,6 @@ class PDFReporter:
             self.tc_id = tc_id
         if tc_name:
             self.tc_name = tc_name
-        # keep the Allure case title in step with the corrected cover page
-        allure_reporter.set_case(self.test_name, tc_id=self.tc_id, tc_name=self.tc_name)
 
     def add_step(self, title: str, description: str = "", screenshot: str | None = None,
                  data: dict | None = None, compare: dict | None = None):
@@ -628,7 +624,6 @@ def init_pdf(test_name: str, enabled: bool | None = None,
              tc_id: str | None = None, tc_name: str | None = None) -> "PDFReporter | None":
     if enabled is None:
         enabled = settings.PDF_EVIDENCE
-    allure_reporter.set_case(test_name, tc_id=tc_id, tc_name=tc_name)
     reporter = (
         PDFReporter(test_name, settings.PLATFORM, tc_id=tc_id, tc_name=tc_name)
         if enabled else None
@@ -639,55 +634,22 @@ def init_pdf(test_name: str, enabled: bool | None = None,
     return reporter
 
 
-def allure_only() -> bool:
-    """True when the PDF belongs in the Allure report and nowhere else.
-
-    PDF_OUTPUT=allure asks for that, but only a run that really is writing
-    Allure results can honour it — otherwise the PDF would have no home at all,
-    so it falls back to a file in reports/.
-    """
-    return settings.PDF_OUTPUT == "allure" and allure_reporter.active()
-
-
-def _staging_dir() -> str:
-    """Where an Allure-only PDF is built before being attached and deleted.
-    Kept out of reports/ so a half-written file never looks like evidence."""
-    path = os.path.join(tempfile.gettempdir(), "swing-pdf-evidence")
-    os.makedirs(path, exist_ok=True)
-    return path
-
-
 def generate_pdf(reporter: "PDFReporter | None", status: str = "PASS") -> str | None:
     """
     Build the PDF from a reporter — call it after the test's last step. No-op
     (returns None) when reporter is None, so the same call works whether or not
     evidence was enabled.
 
-    With PDF_OUTPUT=allure the file is built in a staging directory; conftest
-    attaches it to the Allure case and then ``discard_staged`` removes it.
+    The file always lands in reports/. A run that reports to ClickUp uploads it
+    from there and then removes it — see utils/clickup_reporter.py and
+    settings.PDF_CLEANUP.
     """
     if _active.get("reporter") is reporter:
         _active["generated"] = True
     if reporter is None:
         return None
-    staged = allure_only()
-    path = reporter.generate(status=status, output_dir=_staging_dir() if staged else None)
+    path = reporter.generate(status=status)
     if _active.get("reporter") is reporter:
         _active["path"] = path
-    print(f"\n[evidence] PDF {'attached to the Allure case' if staged else 'written to'}: {path}")
+    print(f"\n[evidence] PDF written to: {path}")
     return path
-
-
-def discard_staged(path: str | None) -> str | None:
-    """Delete an Allure-only PDF once it has been attached, and return what to
-    show as its location ("" for a kept file — the caller keeps the path)."""
-    if not path or not allure_only():
-        return path
-    try:
-        os.remove(path)
-    except OSError:
-        return path
-    if _active.get("path") == path:
-        _active["path"] = None
-    results = allure_reporter.results_dir() or "the Allure results"
-    return f"attached to the Allure case ({results})"

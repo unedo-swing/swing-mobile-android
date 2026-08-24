@@ -59,17 +59,17 @@ pytest -m smoke                               # only smoke tests
 pytest -m "smoke and not regression"          # subset by marker
 ```
 
-The PDF evidence goes **into the Allure report** — one attachment per case, no
-files left in `reports/`. `PDF_OUTPUT` changes that:
+Every PDF is written to `reports/`. A run that reports to ClickUp uploads them
+and then deletes the local copies — `PDF_CLEANUP` decides:
 
 ```bash
-pytest                            # PDF_OUTPUT=allure  — attachment only (default)
-PDF_OUTPUT=reports pytest         # a file in reports/, nothing attached-only
-PDF_OUTPUT=both pytest            # attached and kept as a file
+pytest --clickup                  # PDF_CLEANUP=uploaded — deleted once in ClickUp (default)
+PDF_CLEANUP=never pytest          # always keep the files in reports/
+PDF_CLEANUP=always pytest         # delete at the end of the run either way
 ```
 
-With Allure switched off (`ALLURE=0`) the PDF always falls back to a file in
-`reports/`, so evidence is never lost.
+With `uploaded`, a PDF that never reached ClickUp (reporting off, upload failed,
+over the size cap) is kept — evidence is never lost.
 
 ### The PDF itself
 
@@ -79,61 +79,127 @@ and the run's meta. Page 2 is a clickable table of contents, then one section
 per step. The logos live in [assets/](assets) — extracted from the dev APK, so
 they are the app's real brand assets.
 
-## Allure report
+## ClickUp Chat reporting
 
-**Every run writes Allure results** to `reports/allure-results` — no flag
-needed, the same way PDF evidence is on by default. The two are independent and
-both come out of a single pass:
+[utils/clickup_reporter.py](utils/clickup_reporter.py) posts **one message per
+run** into a ClickUp channel: a status line with the counts, the run's duration,
+which device / build / app state it used, **one row per test case** — TC id,
+name, `PASSED`/`FAILED` and a link to that test's PDF — and then a block per
+failed test with its last step, error and evidence (the same records that feed
+`reports/regression_summary.txt`). Green runs post too; a channel that only ever
+hears about failures gives nobody a reason to trust the silence.
 
-```bash
-pytest -m regression
+```
+🤖 Swing QA Automation Bot · ❌ Swing Android E2E — 1 failed · 2 passed
+
+2026-08-19 15:40 · 4m 07s
+
+**device**: `emulator-5554` | **target**: `dev (DEV_* from .env)` | **suite**: `regression`
+
+**Test cases (3)**
+✅ `TC001` Login with WhatsApp OTP — PASSED — [PDF](https://t90181710981.p.clickup-attachments.com/…)
+✅ `TC002` Onboarding with referral code — PASSED — [PDF](…)
+❌ `TC014` Book a driving range slot — FAILED — [PDF](…)
 ```
 
-The results directory is cleared at the start of each run, so a report always
-shows that run. `--allure-append` (or `ALLURE_APPEND=1`) keeps what is already
-there, for splitting one logical run across several `pytest` invocations.
-
-Rendering them needs the Allure CLI (it is a Java app, `allure-pytest` alone is
-not enough):
+It is **off by default**, so a local debugging run never reaches the team:
 
 ```bash
-brew install allure
+pytest --clickup                              # this run reports
+CLICKUP_REPORT=1 pytest -m regression         # every run in this environment (CI)
+pytest --no-clickup                           # opt one run back out
 ```
+
+Four settings in `.env` (or CI secrets) — see [.env.example](.env.example):
 
 ```bash
-allure serve reports/allure-results
+CLICKUP_TOKEN=pk_xxxxxxxx        # avatar -> Settings -> Apps -> API token
+CLICKUP_WORKSPACE_ID=            # the number in app.clickup.com/<id>/...
+CLICKUP_CHANNEL_ID=              # channel -> "..." -> Copy link, last id in the URL
+CLICKUP_PDF_TASK_ID=             # the task the evidence PDFs are uploaded to
 ```
 
-What ends up in the report, with no change to any test:
+With any of them missing the run still finishes normally — the terminal summary
+prints `ClickUp: skipped — CLICKUP_TOKEN not set` and nothing is posted. The same
+goes for an HTTP error: a failing chat post prints `ClickUp: NOT posted — …` and
+never changes the run's outcome.
 
-* every `capture_step` becomes an Allure step with its screenshot attached;
-* the case is titled from the data sheet (`TT_001 — Book standard tee time`),
-  because `init_pdf(...)` passes the TC ID / TC Name through;
-* feature/story come from the test module and class, severity from the marker
-  (`smoke` → critical, `regression` → normal, `manual` → minor);
-* every case carries its whole PDF as an attachment (under the case's
-  *Tear down* section — that is where the PDF is written), and with the default
-  `PDF_OUTPUT=allure` that attachment is the only copy;
-* the run's target/package/device/app-state show up in the environment widget.
+Running under GitHub Actions the message also carries a link back to the run. To
+report from the nightly workflow, set those values as repository secrets and
+pass them (plus `CLICKUP_REPORT: '1'`) in the `Run Appium tests` step's `env:`.
 
-Turning it off and moving it:
+### Who posts, and what the message says
+
+ClickUp has **no bot account for Chat** — the v3 API posts as whoever owns the
+token, and there is no Slack-style incoming webhook. For a real bot sender,
+invite a dedicated user and use its token. `CLICKUP_BOT_NAME` doesn't change the
+sender, it just makes the automation read as one in the channel:
 
 ```bash
-pytest --no-allure                            # or ALLURE=0 pytest
-pytest --alluredir=/tmp/results               # or ALLURE_DIR=/tmp/results pytest
-pytest --allure                               # fail the run if allure-pytest is missing
+CLICKUP_BOT_NAME=Swing QA Bot     # -> "🤖 Swing QA Bot · ✅ Swing Android E2E — 23 passed"
+CLICKUP_BOT_ICON=🤖               # default; set empty for no icon
 ```
 
-`--allure` only forces the point: results are already on, so the flag's job is
-to turn "allure-pytest isn't installed" from a silently missing report into an
-error. That is why CI passes it. Without it, a machine that hasn't installed the
-package still runs the suite — the header line says `allure: OFF`.
+`CLICKUP_MESSAGE` replaces the whole layout with your own. `\n` is a line break,
+so a multi-line template still fits on one `.env` line:
 
-`ALLURE_TMS_URL="https://tms.example.com/case/{tc_id}"` turns each TC ID into a
-link on its case (no link when unset).
+```bash
+CLICKUP_MESSAGE={bot}{icon} {title} — {status}\n{passed} passed · {failed} failed in {duration} on {device}\n\n{failures}
+```
 
-`allure serve` renders a one-off report — for trends across runs, keep the
-previous report's `history/` folder and use `allure generate --clean`.
+Placeholders: `{bot}` `{icon}` `{title}` `{status}` `{counts}` `{passed}`
+`{failed}` `{error}` `{skipped}` `{xfailed}` `{xpassed}` `{total}` `{duration}`
+`{date}` `{time}` `{datetime}` `{target}` `{build}` `{package}` `{device}`
+`{app_state}` `{platform}` `{suite}` `{link}` `{link_md}` `{cases}`
+`{cases_count}` `{failures}` `{failures_count}`.
+
+An unknown placeholder renders as itself (`{divice}` stays `{divice}`) so a typo
+is visible in the channel rather than silently blank, and a template that can't
+render at all falls back to the built-in layout — the report is never lost to a
+bad format string. `CLICKUP_MESSAGE_FOOTER` adds one line under the built-in
+layout without replacing it.
+
+### Evidence PDFs in the message
+
+ClickUp Chat has **no attachment endpoint** — a message can only carry a link.
+The one upload route ClickUp documents is a task's, and it hands back a
+`t<workspace>.p.clickup-attachments.com/...` URL, so the evidence PDFs are
+uploaded to a host task and linked from the run message:
+
+```bash
+CLICKUP_PDF_LIST_ID=901801234567  # a List in your evidence Folder — one task per run
+CLICKUP_PDF_TASK_ID=              # or one fixed task for every run (wins over the list)
+CLICKUP_PDF_SCOPE=all           # all (default) | failed | off
+CLICKUP_PDF_LIMIT=30            # most files one run uploads
+CLICKUP_PDF_MAX_MB=25           # bigger files are skipped (ClickUp itself allows 1GB)
+CLICKUP_MAX_CASES=30            # most test-case rows one message lists
+```
+
+ClickUp's hierarchy is Space > Folder > List > Task, and **only a task holds
+files** — a Folder cannot, and Chat has no attachment endpoint at all. So make a
+Folder for the evidence with one List in it (e.g. "QA Automation" ▸ "Android E2E
+runs"), right-click the list → *Copy link* → the id is the last part of
+`.../v/li/<id>`. Each run then creates its own task in that list —
+`Swing Android E2E — 2026-08-19 15:44 · 1 failed · 18 passed` — attaches that
+run's PDFs to it, and the message links both each file (next to its test case)
+and the task itself. The Folder ends up reading as a run history.
+
+`CLICKUP_PDF_TASK_ID` is the alternative: one fixed task every run piles its
+PDFs onto. With neither id set nothing is uploaded and the rows show plain
+filenames instead of links.
+
+The whole loop for a run is: write the PDF to `reports/` → create the run's task
+→ upload the PDFs to it → post the message → delete the local files
+(`PDF_CLEANUP=uploaded`):
+
+```bash
+pytest -m regression --pdf --clickup
+```
+
+A failed upload is printed and skipped, never raised — the run summary reaches
+the channel either way, that row just shows the filename, and the PDF stays in
+`reports/` instead of being deleted. `{pdfs}`, `{pdf_url}` and `{pdf_count}` are
+available to `CLICKUP_MESSAGE` too.
 
 ## Calling an API from a test
 

@@ -24,25 +24,32 @@ from pages.tee_time.promo_page import PromoPage
 from pages.tee_time.payment_method_page import PaymentMethodPage
 from pages.tee_time.swing_credits_earnings_page import SwingCreditsEarningsPage
 from pages.featured_promos_page import FeaturedPromosPage
+from pages.swing_credits.swing_credits_page import SwingCreditsPage
+from pages.swing_credits.history_page import HistoryPage
 
 
-# --- booking-confirmation vs confirmed-booking comparison -------------------
-# The two screens word the same value differently ("60 min" vs "60 minutes",
-# "2" vs "2 bay", "Rp. 40,000" vs "Rp 40.000"), so each field is compared on
-# what it actually means rather than on the raw string.
 _NUMBER_FIELDS = ("duration", "bays")
 _AMOUNT_FIELDS = ("total",)
-# promo and credits are only broken out on the confirmation screen, so there is
-# nothing on the confirmed booking to compare them against
-_CONFIRMATION_ONLY_FIELDS = ("promo", "credits_used", "credits_earned")
+_CONFIRMATION_ONLY_FIELDS = ("promo", "credit_used", "credits_earned")
 
 
 def _norm(value: str) -> str:
     return " ".join((value or "").split()).casefold()
 
 
-def _digits(value: str) -> str:
-    return re.sub(r"\D", "", value or "")
+def _amount(value: str) -> str:
+    match = re.search(r"\d[\d.,]*", value or "")
+    if not match:
+        return ""
+    number = match.group().rstrip(".,")
+    decimals = ""
+    separator = max(number.rfind("."), number.rfind(","))
+    if separator != -1 and len(number) - separator - 1 == 2:
+        decimals = number[separator + 1:]
+        number = number[:separator]
+    whole = re.sub(r"\D", "", number).lstrip("0") or "0"
+    decimals = decimals.rstrip("0")
+    return f"{whole}.{decimals}" if decimals else whole
 
 
 def _first_number(value: str) -> str:
@@ -75,7 +82,7 @@ def _same(field: str, before: str, after: str) -> bool:
     if field in _NUMBER_FIELDS:
         left, right = _first_number(before), _first_number(after)
     elif field in _AMOUNT_FIELDS:
-        left, right = _digits(before), _digits(after)
+        left, right = _amount(before), _amount(after)
     else:
         left, right = _norm(before), _norm(after)
     return bool(left) and left == right
@@ -112,7 +119,9 @@ class DrivingRangeFlow(BaseFlow):
         self.promo = self.page(PromoPage)               
         self.payment_method = self.page(PaymentMethodPage)  
         self.credits = self.page(SwingCreditsEarningsPage)
-        self.featured_promos = self.page(FeaturedPromosPage)  
+        self.featured_promos = self.page(FeaturedPromosPage)
+        self.swing_credit = self.page(SwingCreditsPage)
+        self.history_credit = self.page(HistoryPage)  
 
     # --- steps ---
     def select_region(self, region: str):
@@ -126,10 +135,24 @@ class DrivingRangeFlow(BaseFlow):
 
     def search_and_open_range(self, range_name: str):
         self.explore.search_range(range_name)
-        self.explore.verify_results_loaded()
+        self.explore.verify_range_visible(range_name)
         self.explore.open_range(range_name)
         self.details.verify_screen()
         self.details.verify_range_name(range_name)
+    
+    def verify_featured_promo_exclusive_swing_pass_member(self):
+        self.details.verify_exlusive_promo_swing_pass_member()
+        self.details.tap_see_all_promo()
+        self.featured_promos.verify_auto_claim_banner()
+        self.featured_promos.get_promo_names()
+        self.featured_promos.tap_back()
+    
+    def verify_featured_promo_exclusive_regular_member(self):
+        self.details.verify_exlusive_promo_regular_member()
+        self.details.tap_see_all_promo()
+        self.featured_promos.verify_auto_claim_banner()
+        self.featured_promos.get_promo_names()
+        self.featured_promos.tap_back()
     
     def verify_featured_promo(self):
         self.details.tap_see_all_promo()
@@ -144,13 +167,11 @@ class DrivingRangeFlow(BaseFlow):
         self.bays.verify_max_bays(bays)
     
     def verify_minimum_balls(self, addons: list[dict]):
-        self.add_addons(addons)
         self.booking_confirmation.verify_minimum_balls()
 
     def select_schedule(self, name: str, date: str, bay_name: str,
                         time_start: str, time_end: str):
         self.details.select_date(name, date)
-        self.details.verify_slots_loaded()
         self.details.select_bay_tab(bay_name)
         self.details.verify_slots_loaded()
         self.details.select_time(time_start, time_end)
@@ -187,12 +208,15 @@ class DrivingRangeFlow(BaseFlow):
     def pay_now(self):
         self.booking_confirmation.verify_pay_now_enabled()
         self.booking_confirmation.tap_pay_now()
-        self.success.verify_screen()
+    
+    def get_data_before_payment(self, bay_type: str = "", used_credit: str = ""):
+        return self.booking_confirmation.get_summary(bay_type, used_credit)
 
-    def pay_and_get_confirmed_booking(self) -> dict:
-        before = self.booking_confirmation.get_summary()
+    def pay_and_get_confirmed_booking(self, before, bay_type:str = "") -> dict:
         self.pay_now()
-        after = self.success.get_summary()
+        self.booking_confirmation.tap_proceed_to_pay()
+        self.success.verify_screen()
+        after = self.success.get_summary(bay_type)
 
         mismatches = compare_booking(before, after)
         self.success.capture_step(
@@ -214,7 +238,7 @@ class DrivingRangeFlow(BaseFlow):
                 for field, (b, a) in mismatches.items()
             )
         )
-
+        after["credit_used"] = before.get("credit_used", "")
         after["booking_id"] = self.success.verify_booking_id()
         return after
 
@@ -300,6 +324,7 @@ class DrivingRangeFlow(BaseFlow):
         else:
             self.booking_confirmation.open_promo()
             self.promo.verify_screen()
+        self.promo.wait_for(2)
         self.promo.add_promo_code(promo_code)
         self.promo.search_promo(promo_name)
         self.promo.apply_promo(promo_name)
@@ -447,3 +472,11 @@ class DrivingRangeFlow(BaseFlow):
     def open_cancellation_details(self):
         self.cancel_success.tap_see_cancellation_details()
         self.cancellation_details.verify_screen()
+    
+    
+    ###### Check Used Credit
+    def verify_swing_credit_usaged(self, code_booking: str, tot_credits: str):
+        self.home.open_swing_credits()
+        self.swing_credit.open_history()
+        self.history_credit.tap_filter_credit_used()
+        self.history_credit.verify_credit(code_booking, tot_credits)

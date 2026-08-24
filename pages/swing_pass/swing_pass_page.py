@@ -4,11 +4,19 @@ from locators.swing_pass.swing_pass_locators import SwingPassLocators as L
 
 class SwingPassPage(AndroidBasePage):
 
-    # ================= verify steps =================
+    STATUS_WORDS = ("Active", "Inactive", "Expired", "Cancelled", "Waiting")
+
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Swing Pass screen not shown"
-        self.capture_step("swing_pass", "Swing Pass screen is visible")
+        self.capture_step("swing_pass")
+
+    def verify_join_screen(self):
+        self.wait_until_loaded()
+        assert self.is_visible(L.label_title, timeout=20), "Swing Pass screen not shown"
+        assert self.is_visible(L.button_join, timeout=20), \
+            "No 'Join Swing Pass' button — the account may already hold a Pass"
+        self.capture_step("swing_pass_join_screen")
 
     def verify_active_membership(self):
         card = self.get_membership()
@@ -16,6 +24,28 @@ class SwingPassPage(AndroidBasePage):
             f"Membership card does not show an active period: {card['label']!r}"
         self.capture_step("swing_pass_active",
                           f"Active until {card['valid_until']}", data=card)
+
+    def verify_inactive_membership(self):
+        card = self.get_membership()
+        assert card["status"].lower() == "inactive", \
+            f"Membership card is not inactive: {card['label']!r}"
+        self.capture_step("swing_pass_inactive", card["label"], data=card)
+
+    def verify_waiting_verification(self):
+        card = self.get_membership()
+        assert card["status"] == "Waiting for verification", \
+            f"Membership card is not waiting for verification: {card['label']!r}"
+        self.capture_step("swing_pass_waiting", card["label"], data=card)
+
+    def verify_verification_submitted(self, note: str = ""):
+        assert self.is_visible(L.label_verification_submitted, timeout=20), \
+            "'Verification submitted!' not shown"
+        actual = self.get_verification_note()
+        assert actual, "No verification notice on the screen"
+        if note:
+            assert note in actual, f"Verification notice is '{actual}', expected '{note}'"
+        assert self.is_visible(L.button_ok_got_it), "No 'Ok, got it!' button on the screen"
+        self.capture_step("swing_pass_verification_submitted", actual)
 
     def verify_pass_id(self, expected: str):
         actual = self.get_membership()["pass_id"]
@@ -58,10 +88,24 @@ class SwingPassPage(AndroidBasePage):
                     f"Plan update banner does not name the {label} '{want}': {notice!r}"
                 )
 
+    def verify_tagline(self, expected: str = ""):
+        tagline = self.get_tagline()
+        assert tagline, "No Swing Pass tagline on the screen"
+        if expected:
+            assert expected in tagline, f"Tagline is '{tagline}', expected '{expected}'"
+        self.capture_step("swing_pass_tagline", tagline)
+
+    def verify_subscribe_info(self, expected: str = ""):
+        info = self.get_subscribe_info()
+        assert info, "No Swing Pass subscription description on the screen"
+        if expected:
+            assert expected in info, f"Description is '{info}', expected '{expected}'"
+        self.capture_step("swing_pass_subscribe_info", info)
+
     def verify_promos_section(self):
         assert self.is_visible_after_scroll(L.label_promos_section), \
             "'Exclusive promos' section not shown"
-        self.capture_step("swing_pass_promos", "Member-only promos section is visible")
+        self.capture_step("swing_pass_promos")
 
     def verify_promo(self, code: str):
         assert self.find_anywhere(L.promo_by_code % code) is not None, \
@@ -70,9 +114,8 @@ class SwingPassPage(AndroidBasePage):
 
     def verify_faq_section(self):
         assert self.is_visible_after_scroll(L.label_faq_section), "FAQ section not shown"
-        self.capture_step("swing_pass_faq", "FAQs about Swing Pass section is visible")
+        self.capture_step("swing_pass_faq")
 
-    # ================= parsing =================
     @staticmethod
     def _lines(desc: str) -> list:
         return [
@@ -88,12 +131,14 @@ class SwingPassPage(AndroidBasePage):
                 "label": desc or ""}
         if lines:
             card["name"] = lines[0]
-        if len(lines) >= 2:
-            card["pass_id"] = lines[1]
-        if len(lines) >= 3:
-            card["status"] = lines[2]
-            if "until" in lines[2]:
-                card["valid_until"] = lines[2].split("until", 1)[1].strip()
+        rest = lines[1:]
+        if rest and rest[-1].startswith(cls.STATUS_WORDS):
+            card["status"] = rest[-1]
+            rest = rest[:-1]
+            if "until" in card["status"]:
+                card["valid_until"] = card["status"].split("until", 1)[1].strip()
+        if rest:
+            card["pass_id"] = rest[0]
         return card
 
     @classmethod
@@ -101,7 +146,6 @@ class SwingPassPage(AndroidBasePage):
         lines = cls._lines(desc)
         savings = {"since": "", "amount": "", "label": desc or ""}
         if lines and "," in lines[0]:
-            # "Since <date>, you've saved" — the date is between "Since" and the comma
             savings["since"] = lines[0].split(",", 1)[0].replace("Since", "", 1).strip()
         if len(lines) >= 2:
             savings["amount"] = lines[1]
@@ -140,18 +184,33 @@ class SwingPassPage(AndroidBasePage):
             "label": desc or "",
         }
 
-    # ================= reading values =================
     def _desc(self, locator) -> str:
         return self.scroll_and_find(locator).get_attribute("content-desc") or ""
 
+    def _optional_desc(self, locator) -> str:
+        element = self.find_anywhere(locator)
+        return element.get_attribute("content-desc") or "" if element is not None else ""
+
+    def is_member(self) -> bool:
+        return self.find_anywhere(L.button_join) is None
+
     def get_membership(self) -> dict:
-        card = self.parse_membership(self._desc(L.card_membership))
-        self.capture_step("swing_pass_card", f"Pass {card['pass_id']} — {card['status']}",
-                          data=card)
+        card = self.parse_membership(self._desc(L.card_membership_any))
+        self.capture_step("swing_pass_card",
+                          f"Pass {card['pass_id']} — {card['status']}", data=card)
         return card
 
     def get_pass_id(self) -> str:
         return self.get_membership()["pass_id"]
+
+    def get_status(self) -> str:
+        return self.get_membership()["status"]
+
+    def get_tagline(self) -> str:
+        return self._optional_desc(L.label_tagline)
+
+    def get_subscribe_info(self) -> str:
+        return self._optional_desc(L.label_subscribe_info)
 
     def get_savings(self) -> dict:
         savings = self.parse_savings(self._desc(L.card_savings))
@@ -176,14 +235,15 @@ class SwingPassPage(AndroidBasePage):
         return billing
 
     def get_plan_update_notice(self) -> str:
-        element = self.find_anywhere(L.label_plan_updated)
-        notice = element.get_attribute("content-desc") or "" if element is not None else ""
+        notice = self._optional_desc(L.label_plan_updated)
         self.capture_step("swing_pass_plan_updated", notice or "No plan update banner")
         return notice
 
+    def get_verification_note(self) -> str:
+        return self._optional_desc(L.label_verification_note)
+
     def get_cancellation_notice(self) -> str:
-        element = self.find_anywhere(L.label_cancellation_notice)
-        notice = element.get_attribute("content-desc") or "" if element is not None else ""
+        notice = self._optional_desc(L.label_cancellation_notice)
         self.capture_step("swing_pass_cancel_notice", notice or "No cancellation notice")
         return notice
 
@@ -229,26 +289,33 @@ class SwingPassPage(AndroidBasePage):
         self.capture_step("swing_pass_benefit", benefit["title"], data=benefit)
         return benefit
 
-    # ================= action steps =================
     def tap_enlarge_card(self):
         self.click(L.button_enlarge_card)
-        self.capture_step("swing_pass_enlarge", "Tapped Enlarge card")
+        self.capture_step("swing_pass_enlarge")
+
+    def tap_membership_card(self):
+        self.click(L.card_membership_any)
+        self.capture_step("swing_pass_open_card")
+
+    def tap_join(self):
+        self.click(L.button_join)
+        self.capture_step("swing_pass_tap_join")
 
     def open_savings_breakdown(self):
         self.click(L.card_savings)
-        self.capture_step("swing_pass_open_savings", "Opened the savings breakdown")
+        self.capture_step("swing_pass_open_savings")
 
     def open_earnings_breakdown(self):
         self.click(L.button_see_earnings)
-        self.capture_step("swing_pass_open_earnings", "Opened the earnings breakdown")
+        self.capture_step("swing_pass_open_earnings")
 
     def open_manage(self):
         self.click(L.button_manage)
-        self.capture_step("swing_pass_manage", "Opened Manage membership")
+        self.capture_step("swing_pass_manage")
 
     def tap_renew(self):
         self.click(L.button_renew)
-        self.capture_step("swing_pass_renew", "Tapped Renew")
+        self.capture_step("swing_pass_renew")
 
     def open_promo(self, code: str):
         self.click(L.promo_by_code % code)
@@ -256,15 +323,24 @@ class SwingPassPage(AndroidBasePage):
 
     def open_all_cashbacks(self):
         self.click(L.button_see_all_cashbacks)
-        self.capture_step("swing_pass_cashbacks", "Tapped See all cashbacks")
+        self.capture_step("swing_pass_cashbacks")
 
     def open_faq(self, question: str):
         self.click(L.faq_by_question % question)
         self.capture_step("swing_pass_open_faq", f"Tapped FAQ '{question}'")
 
+    def tap_ok_got_it(self):
+        self.click(L.button_ok_got_it)
+        self.wait_until_loaded()
+        self.capture_step("swing_pass_ok_got_it")
+
+    def tap_contact_support(self):
+        self.click(L.button_contact_support)
+        self.capture_step("swing_pass_contact_support")
+
     def tap_contact_us(self):
         self.click(L.button_contact_us)
-        self.capture_step("swing_pass_contact_us", "Tapped Contact us here.")
+        self.capture_step("swing_pass_contact_us")
 
     def change_region(self, code: str = "ID"):
         self.click(L.button_region_by_code % code)
@@ -272,4 +348,4 @@ class SwingPassPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("swing_pass_back", "Left the Swing Pass screen")
+        self.capture_step("swing_pass_back")

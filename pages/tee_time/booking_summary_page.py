@@ -4,8 +4,10 @@ from core.android_base_page import AndroidBasePage
 from locators.tee_time.booking_summary_locators import BookingSummaryLocators as L
 
 
+AMOUNT_RE = re.compile(r"\b(?:Rp|RM)\.?\s*\d[\d.,]*(?<![.,])")
+
 def _amounts(text: str) -> list[str]:
-    return re.findall(r"Rp\.\s?[\d.,]+", text or "")
+    return AMOUNT_RE.findall(text or "")
 
 
 class BookingSummaryPage(AndroidBasePage):
@@ -13,7 +15,7 @@ class BookingSummaryPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), "Booking summary screen not shown"
-        self.capture_step("booking_summary", "Booking summary screen is visible")
+        self.capture_step("booking_summary")
 
     def _desc(self, locator) -> str:
         # scroll_and_find (not find): long scrollable screen (identity, players,
@@ -58,7 +60,7 @@ class BookingSummaryPage(AndroidBasePage):
 
     def open_terms(self):
         self.click(L.link_terms)
-        self.capture_step("open_terms", "Opened Terms & conditions")
+        self.capture_step("open_terms")
 
     # ---- price details ----
     def get_price_breakdown(self, name: str) -> str:
@@ -107,4 +109,4 @@ class BookingSummaryPage(AndroidBasePage):
     # ================= action steps =================
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("booking_summary_back", "Tapped back")
+        self.capture_step("booking_summary_back")

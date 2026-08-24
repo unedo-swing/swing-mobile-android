@@ -30,7 +30,7 @@ class CoachMarkPage(AndroidBasePage):
     # ================= action steps =================
     def tap_got_it(self):
         self.click(L.button_got_it)
-        self.capture_step("coach_mark_got_it", "Tapped Got it!")
+        self.capture_step("coach_mark_got_it")
 
     def dismiss(self, title: str, body: str | None = None):
         self.verify_coach_mark(title, body)

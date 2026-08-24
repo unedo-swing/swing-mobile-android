@@ -6,6 +6,8 @@ from pages.onboarding.gender_picker_page import GenderPickerPage
 from pages.onboarding.find_out_source_page import FindOutSourcePage
 from pages.onboarding.whats_new_page import WhatsNewPage
 from pages.onboarding.coach_mark_page import CoachMarkPage
+from pages.notification_prompt_page import NotificationPromptPage
+from pages.location_prompt_page import LocationPromptPage
 from pages.home_page import HomePage
 
 
@@ -20,6 +22,8 @@ class OnboardingFlow(BaseFlow):
         self.nationality = self.page(NationalityPickerPage)
         self.gender = self.page(GenderPickerPage)
         self.source = self.page(FindOutSourcePage)
+        self.notif = self.page(NotificationPromptPage)
+        self.location = self.page(LocationPromptPage)
 
     # ================= what's new (fresh install only) =================
     def verify_whats_new(self):
@@ -128,6 +132,49 @@ class OnboardingFlow(BaseFlow):
         self.open_find_out_source()
         self.verify_source_options()
         self.select_source(source)
+
+    # ================= permission bottom sheets =================
+    def verify_notification_prompt(self):
+        self.notif.verify_screen()
+
+    def enable_notification(self):
+        self.notif.enable()
+
+    def enable_notification_if_shown(self, timeout: int = 10) -> bool:
+        return self.notif.enable_if_shown(timeout)
+
+    def dismiss_notification_if_shown(self, timeout: int = 10) -> bool:
+        return self.notif.dismiss_if_shown(timeout)
+
+    def verify_location_prompt(self):
+        self.location.verify_screen()
+
+    def enable_location(self):
+        self.location.enable()
+
+    def enable_location_if_shown(self, timeout: int = 10) -> bool:
+        return self.location.enable_if_shown(timeout)
+
+    def dismiss_location_if_shown(self, timeout: int = 10) -> bool:
+        return self.location.dismiss_if_shown(timeout)
+
+    def allow_permissions(self, timeout: int = 10) -> list:
+        """Grant whichever of the two bottom sheets show up, in the order the app asks."""
+        granted = []
+        if self.enable_notification_if_shown(timeout):
+            granted.append("notification")
+        if self.enable_location_if_shown(timeout):
+            granted.append("location")
+        return granted
+
+    def skip_permissions(self, timeout: int = 10) -> list:
+        """Tap "I'll do it later" on whichever of the two bottom sheets show up."""
+        skipped = []
+        if self.dismiss_notification_if_shown(timeout):
+            skipped.append("notification")
+        if self.dismiss_location_if_shown(timeout):
+            skipped.append("location")
+        return skipped
 
     # ================= home coach marks (fresh install only) =================
     def verify_coach_marks(self):

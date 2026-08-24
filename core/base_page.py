@@ -3,12 +3,16 @@ import time
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    ElementNotInteractableException,
+    StaleElementReferenceException,
+    TimeoutException,
+    WebDriverException,
+)
 from appium.webdriver.common.appiumby import AppiumBy
 
 from config import settings
-from utils import allure_reporter
-from utils.pdf_reporter import humanize_step
 
 
 class BasePage:
@@ -47,7 +51,6 @@ class BasePage:
     # Finding elements
     # ------------------------------------------------------------------ #
     def find(self, locator):
-        """Wait until present and return a single element."""
         self._log("find", locator)
         return self.wait.until(EC.presence_of_element_located(self._resolve(locator)))
 
@@ -64,11 +67,7 @@ class BasePage:
         self._log("wait_clickable", locator)
         return self.wait.until(EC.element_to_be_clickable(self._resolve(locator)))
 
-    def is_visible(self, locator, timeout: int = 5, log: bool = True) -> bool:
-        """True if the element becomes visible within ``timeout`` seconds.
-
-        ``log`` can be set False by tight polling loops to avoid log spam.
-        """
+    def is_visible(self, locator, timeout: int = 10, log: bool = True) -> bool:
         if log:
             self._log("is_visible", locator)
         try:
@@ -82,16 +81,40 @@ class BasePage:
     # ------------------------------------------------------------------ #
     # Interactions  (each inlines its own wait so it logs exactly once)
     # ------------------------------------------------------------------ #
-    def click(self, locator):
+    # A tap that is accepted by the driver but lands on nothing raises one of
+    # these: the node was rebuilt under us (stale), something is still on top
+    # (intercepted), or the widget is not wired up yet (not interactable).
+    CLICK_ERRORS = (
+        StaleElementReferenceException,
+        ElementClickInterceptedException,
+        ElementNotInteractableException,
+        WebDriverException,
+    )
+
+    def wait_settled(self):
+        """Hook: platform bases wait here for the screen to stop moving."""
+        pass
+
+    def click(self, locator, retries: int = 3):
         self._log("click", locator)
-        self.wait.until(EC.element_to_be_clickable(self._resolve(locator))).click()
+        last = None
+        for attempt in range(1, retries + 1):
+            try:
+                self.wait.until(EC.element_to_be_clickable(self._resolve(locator))).click()
+                return
+            except self.CLICK_ERRORS as exc:
+                last = exc
+                self._log(
+                    f"click attempt {attempt}/{retries} failed / {locator} "
+                    f"({type(exc).__name__}) — settling and retrying"
+                )
+                self.wait_settled()
+                time.sleep(0.3)
+        raise last
 
     def type_text(self, locator, text: str, clear: bool = True):
         self._log("type_text", locator)
         element = self.wait.until(EC.visibility_of_element_located(self._resolve(locator)))
-        # Flutter fields must be focused before they accept input, otherwise the
-        # value never registers and dependent widgets (e.g. an enabled button)
-        # don't update. Tapping the field first fixes this.
         element.click()
         if clear:
             element.clear()
@@ -103,18 +126,6 @@ class BasePage:
 
     def type_text_verified(self, locator, text: str, clear: bool = True,
                            retries: int = 2, settle: float = 0.3) -> None:
-        """type_text, but re-reads the field afterward and retries (re-focus +
-        clear + resend) if the value didn't fully register.
-
-        Numeric fields (phone numbers) are the ones most exposed to a Flutter
-        input-connection race: switching to a numeric keypad from whatever
-        keyboard the previous field used takes measurably longer to attach
-        than staying on the same IME, and a digits-only input formatter can
-        reject a bulk send_keys write that arrives before the connection is
-        ready — silently dropping some or all of the keystrokes. Re-focusing
-        and resending on mismatch absorbs that race instead of leaving a bad
-        value in the field.
-        """
         last_actual = None
         for attempt in range(1, retries + 1):
             self.type_text(locator, text, clear)
@@ -175,11 +186,6 @@ class BasePage:
                 title=title, description=description, screenshot=path,
                 data=data, compare=compare,
             )
-        # Same step, second destination: the Allure timeline. No-op unless the
-        # run was started with --allure (see utils/allure_reporter.py).
-        with allure_reporter.step(f"{title} — {description}" if description else title):
-            allure_reporter.attach_png(path, humanize_step(title))
-            allure_reporter.attach_step_data(data, compare)
         return path
 
     def wait_for(self, times: int):

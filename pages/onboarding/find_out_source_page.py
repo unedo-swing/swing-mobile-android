@@ -20,8 +20,7 @@ class FindOutSourcePage(AndroidBasePage):
     def verify_screen(self):
         assert self.is_visible(L.label_title, timeout=20), \
             "'How did you find out about Swing?' screen not shown"
-        self.capture_step("onboarding_find_out_source",
-                          "'How did you find out about Swing?' screen is visible")
+        self.capture_step("onboarding_find_out_source")
 
     def get_options(self) -> list:
         return [
@@ -51,8 +50,8 @@ class FindOutSourcePage(AndroidBasePage):
     def tap_finish(self):
         time.sleep(3)
         self.click(L.button_finish)
-        self.capture_step("onboarding_finish", "Tapped Finish")
+        self.capture_step("onboarding_finish")
 
     def tap_previous(self):
         self.click(L.button_previous)
-        self.capture_step("onboarding_previous", "Tapped Previous")
+        self.capture_step("onboarding_previous")

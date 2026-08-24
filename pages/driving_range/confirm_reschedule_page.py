@@ -10,7 +10,7 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Confirm reschedule screen not shown"
-        self.capture_step("dr_confirm_reschedule", "Confirm reschedule screen is visible")
+        self.capture_step("dr_confirm_reschedule")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -51,7 +51,7 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
     def verify_reason_section(self):
         assert self.is_visible_after_scroll(L.label_reschedule_reason, timeout=15), \
             "Reschedule reason section not shown"
-        self.capture_step("dr_reschedule_reason", "Reschedule reason section is visible")
+        self.capture_step("dr_reschedule_reason")
 
     def select_reason(self, name: str):
         self.click(L.reason_by_name % name)
@@ -70,14 +70,14 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
 
     def tap_price_difference(self):
         self.click(L.button_price_difference)
-        self.capture_step("dr_reschedule_price_diff", "Tapped Price difference")
+        self.capture_step("dr_reschedule_price_diff")
 
     def get_payment_method(self) -> str:
         return self.scroll_and_find(L.value_payment_method).get_attribute("content-desc") or ""
 
     def tap_change_payment(self):
         self.click(L.value_payment_method)
-        self.capture_step("dr_reschedule_change_payment", "Tapped payment method")
+        self.capture_step("dr_reschedule_change_payment")
 
     # ================= summary snapshot =================
     def get_summary(self) -> dict:
@@ -102,25 +102,25 @@ class DrivingRangeConfirmReschedulePage(AndroidBasePage):
 
     def verify_confirm_enabled(self):
         assert self.is_confirm_enabled(), "Confirm reschedule & pay is disabled"
-        self.capture_step("dr_reschedule_confirm_enabled", "Confirm reschedule & pay is enabled")
+        self.capture_step("dr_reschedule_confirm_enabled")
 
     def tap_confirm_pay(self):
         self.click(L.button_confirm_pay)
-        self.capture_step("dr_reschedule_confirm", "Tapped Confirm reschedule & pay")
+        self.capture_step("dr_reschedule_confirm")
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_reschedule_back", "Tapped back")
+        self.capture_step("dr_reschedule_back")
 
     # ================= confirm dialog =================
     def verify_confirm_dialog(self):
         assert self.is_visible(L.dialog_title, timeout=15), "Confirm reschedule dialog not shown"
-        self.capture_step("dr_reschedule_dialog", "Confirm reschedule dialog is visible")
+        self.capture_step("dr_reschedule_dialog")
 
     def dialog_confirm(self):
         self.click(L.dialog_button_confirm)
-        self.capture_step("dr_reschedule_dialog_confirm", "Tapped Confirm reschedule (dialog)")
+        self.capture_step("dr_reschedule_dialog_confirm")
 
     def dialog_go_back(self):
         self.click(L.dialog_button_go_back)
-        self.capture_step("dr_reschedule_dialog_back", "Tapped Go back (dialog)")
+        self.capture_step("dr_reschedule_dialog_back")

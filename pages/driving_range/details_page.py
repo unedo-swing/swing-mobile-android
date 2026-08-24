@@ -12,7 +12,7 @@ class DrivingRangeDetailsPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Driving range details screen not shown"
-        self.capture_step("dr_details", "Driving range details screen is visible")
+        self.capture_step("dr_details")
 
     def verify_range_name(self, name: str):
         assert self.is_visible(L.label_range_name % name), f"Range '{name}' not shown"
@@ -20,29 +20,29 @@ class DrivingRangeDetailsPage(AndroidBasePage):
 
     def verify_slots_loaded(self):
         assert self.wait_until_loaded(), "Driving range slots still loading"
-        self.capture_step("dr_slots_loaded", "Time slots finished loading")
+        self.capture_step("dr_slots_loaded")
 
     def verify_book_enabled(self):
         assert self.is_book_enabled(), "Book driving range is disabled"
-        self.capture_step("dr_book_enabled", "Book driving range is enabled")
+        self.capture_step("dr_book_enabled")
 
     # ================= header =================
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("dr_details_back", "Tapped back")
+        self.capture_step("dr_details_back")
 
     def tap_share(self):
         self.click(L.button_share)
-        self.capture_step("dr_details_share", "Tapped share")
+        self.capture_step("dr_details_share")
 
     # ================= gallery =================
     def verify_gallery(self):
         assert self.is_visible(L.gallery_image, timeout=15), "Range image gallery not shown"
-        self.capture_step("dr_gallery", "Image gallery is visible")
+        self.capture_step("dr_gallery")
 
     def tap_gallery_image(self):
         self.click(L.gallery_image)
-        self.capture_step("dr_gallery_tap", "Tapped the range image")
+        self.capture_step("dr_gallery_tap")
 
     def has_gallery_indicator(self) -> bool:
         return self.is_visible(L.gallery_indicator, timeout=5)
@@ -56,7 +56,7 @@ class DrivingRangeDetailsPage(AndroidBasePage):
 
     def tap_distance(self):
         self.click(L.button_distance)
-        self.capture_step("dr_distance", "Tapped the distance shortcut")
+        self.capture_step("dr_distance")
 
     # ================= promos =================
     def tap_promo(self, name: str):
@@ -91,29 +91,37 @@ class DrivingRangeDetailsPage(AndroidBasePage):
     #       so it is only rendered once the strip is swiped left -----
     def swipe_promo_left(self):
         self.swipe_left_in(L.promo_carousel)
-        self.capture_step("dr_promo_swipe", "Swiped the promo strip left")
+        self.capture_step("dr_promo_swipe")
 
     def reveal_see_all_promo(self, max_swipes: int = 5) -> bool:
         return self.swipe_left_to_element(
             L.button_see_all_featured_promo, L.promo_carousel, max_swipes
         )
 
+    def verify_exlusive_promo_swing_pass_member(self):
+        assert self.is_visible(L.list_swing_pass_exclusive_active), 'Regular Member'
+        self.capture_step("Check Active Exclusice Promo")
+    
+    def verify_exlusive_promo_regular_member(self):
+        assert self.is_visible(L.list_swing_pass_exclusive_join), 'Swing Pass Member'
+        self.capture_step("Check Join Exclusice Promo")
+
     def verify_see_all_promo(self):
         assert self.reveal_see_all_promo(), "'See all' not shown after swiping the promo strip"
-        self.capture_step("dr_promo_see_all", "'See all' is visible at the end of the promo strip")
+        self.capture_step("dr_promo_see_all")
 
     def tap_see_all_promo(self):
         self.verify_see_all_promo()
         self.click(L.button_see_all_featured_promo)
-        self.capture_step("dr_promo_see_all_tap", "Tapped 'See all' on the promo strip")
+        self.capture_step("dr_promo_see_all_tap")
 
     def verify_cashback_banner(self):
         assert self.is_visible(L.banner_cashback, timeout=10), "Cashback banner not shown"
-        self.capture_step("dr_cashback", "Cashback banner is visible")
+        self.capture_step("dr_cashback")
 
     def tap_cashback_banner(self):
         self.click(L.banner_cashback)
-        self.capture_step("dr_cashback_tap", "Tapped the cashback banner")
+        self.capture_step("dr_cashback_tap")
 
     # ================= date / bay / time =================
     def select_date(self, name: str,date_text: str):
@@ -147,7 +155,6 @@ class DrivingRangeDetailsPage(AndroidBasePage):
         return [e.get_attribute("content-desc") or "" for e in self.find_all(L.dates_all)]
 
     def select_date_in_strip(self, date_text: str):
-        """Pick a date straight from the strip, without opening the calendar."""
         self.click(L.date_by_text % date_text)
         self.capture_step("dr_select_date_strip", f"Selected date '{date_text}' from the strip")
 
@@ -171,7 +178,7 @@ class DrivingRangeDetailsPage(AndroidBasePage):
 
     def tap_see_pricelist(self):
         self.click(L.button_see_pricelist)
-        self.capture_step("dr_pricelist", "Tapped See complete pricelist")
+        self.capture_step("dr_pricelist")
 
     # ================= summary / location =================
     def get_booking_summary(self) -> str:
@@ -180,11 +187,11 @@ class DrivingRangeDetailsPage(AndroidBasePage):
     def verify_location_section(self):
         self.scroll_to_text("Location")
         assert self.is_visible(L.label_location_section, timeout=15), "Location section not shown"
-        self.capture_step("dr_location", "Location section is visible")
+        self.capture_step("dr_location")
 
     def tap_view_on_maps(self):
         self.click(L.button_view_on_maps)
-        self.capture_step("dr_view_maps", "Tapped View on Google Maps")
+        self.capture_step("dr_view_maps")
 
     # ================= book =================
     def is_book_enabled(self) -> bool:
@@ -192,8 +199,8 @@ class DrivingRangeDetailsPage(AndroidBasePage):
 
     def tap_book(self):
         self.click(L.button_book)
-        self.capture_step("dr_book", "Tapped Book driving range")
+        self.capture_step("dr_book")
 
     def verify_book_disabled(self):
         assert self.is_visible(L.button_book_disabled, timeout=10), "Book driving range is enabled"
-        self.capture_step("dr_book_disabled", "Book driving range is disabled")
+        self.capture_step("dr_book_disabled")

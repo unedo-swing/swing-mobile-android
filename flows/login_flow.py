@@ -3,6 +3,7 @@ from utils.api_client import ApiClient, ApiError, otp_code
 from pages.login_page import LoginPage
 from pages.country_picker_page import CountryPickerPage
 from pages.notification_prompt_page import NotificationPromptPage
+from pages.location_prompt_page import LocationPromptPage
 from pages.home_page import HomePage
 from pages.account_page import AccountPage
 from pages.tee_time.explore_page import ExplorePage
@@ -17,6 +18,7 @@ class LoginFlow(BaseFlow):
         self.login = self.page(LoginPage)
         self.country = self.page(CountryPickerPage)
         self.notif = self.page(NotificationPromptPage)
+        self.location = self.page(LocationPromptPage)
         self.home = self.page(HomePage)
         self.account = self.page(AccountPage)
         self.explore = self.page(ExplorePage)
@@ -107,9 +109,6 @@ class LoginFlow(BaseFlow):
 
     def login_with_otp(self, country: str, phone: str, method: str, otp: str = "",
                        dial_code: str = ""):
-        """The whole sign-in leg, straight from one row of test data. The dial
-        code is read off the screen by select_country(); pass one only to force
-        a different code than the app shows."""
         self.open_login()
         self.select_country(country)
         self.enter_phone_number(phone)
@@ -122,6 +121,48 @@ class LoginFlow(BaseFlow):
 
     def dismiss_notification(self):
         self.notif.do_it_later()
+
+    def enable_notification(self):
+        self.notif.enable()
+
+    def enable_notification_if_shown(self, timeout: int = 10) -> bool:
+        return self.notif.enable_if_shown(timeout)
+
+    def dismiss_notification_if_shown(self, timeout: int = 10) -> bool:
+        return self.notif.dismiss_if_shown(timeout)
+
+    def verify_location_prompt(self):
+        self.location.verify_screen()
+
+    def dismiss_location(self):
+        self.location.do_it_later()
+
+    def enable_location(self):
+        self.location.enable()
+
+    def enable_location_if_shown(self, timeout: int = 10) -> bool:
+        return self.location.enable_if_shown(timeout)
+
+    def dismiss_location_if_shown(self, timeout: int = 10) -> bool:
+        return self.location.dismiss_if_shown(timeout)
+
+    def allow_permissions(self, timeout: int = 10) -> list:
+        """Grant whichever of the two bottom sheets show up, in the order the app asks."""
+        granted = []
+        if self.enable_notification_if_shown(timeout):
+            granted.append("notification")
+        if self.enable_location_if_shown(timeout):
+            granted.append("location")
+        return granted
+
+    def skip_permissions(self, timeout: int = 10) -> list:
+        """Tap "I'll do it later" on whichever of the two bottom sheets show up."""
+        skipped = []
+        if self.dismiss_notification_if_shown(timeout):
+            skipped.append("notification")
+        if self.dismiss_location_if_shown(timeout):
+            skipped.append("location")
+        return skipped
 
     def verify_home(self):
         self.home.verify_screen()
@@ -137,3 +178,4 @@ class LoginFlow(BaseFlow):
     def open_course_details(self, name: str):
         self.explore.open_course(name)
         self.course_details.verify_screen()
+    

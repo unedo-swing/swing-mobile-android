@@ -5,7 +5,7 @@ class ActivityPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_activity, timeout=10), "Activity screen not shown"
-        self.capture_step("Verify Activity Page", "Activity Page is visible")
+        self.capture_step("Verify Activity Page")
     
     def click_filter_activity(self, type_filter: str):
         match type_filter:
@@ -17,10 +17,10 @@ class ActivityPage(AndroidBasePage):
                 self.click(L.label_filter_event)
             case "Marketplace":
                 self.click(L.label_filter_marketplace)
-        self.capture_step(f"Tap Filter {type_filter}", "")
+        self.capture_step(f"Tap Filter {type_filter}")
     
     def click_card_activity(self, name: str, time_start: str, booking_date: str):
         self.click(L.card_activity % (name, time_start, booking_date))
-        self.capture_step("Tap Card Activity", "")
+        self.capture_step("Tap Card Activity")
     
     

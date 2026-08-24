@@ -9,7 +9,7 @@ class DrivingRangeBookingSuccessPage(AndroidBasePage):
         # payment settles behind a full-screen spinner before this screen draws
         self.wait_until_loaded(timeout=120)
         assert self.is_visible(L.label_confirmed, timeout=30), "Booking success screen not shown"
-        self.capture_step("dr_booking_success", "Booking success screen is visible")
+        self.capture_step("dr_booking_success")
 
     def verify_range_name(self, name: str):
         assert self.is_visible_after_scroll(L.label_range_name % name), f"Range '{name}' not shown"
@@ -30,6 +30,7 @@ class DrivingRangeBookingSuccessPage(AndroidBasePage):
 
     def _read(self, getter) -> str:
         try:
+            print(f"Searching For : {getter}")
             return getter()
         except Exception:
             return ""
@@ -59,21 +60,26 @@ class DrivingRangeBookingSuccessPage(AndroidBasePage):
         return self._value("Payment method")
 
     def get_credits_earned(self) -> str:
+        if not self.is_visible(L.value_by_label % "Swing Credits you earned", timeout=5, log=False):
+            return ""
         return self._value("Swing Credits you earned")
 
-    def get_summary(self) -> dict:
-        # start from the top so the fields below read in screen order
-        self.scroll_to_top()
+    def get_summary(self, bay_type: str = "") -> dict:
         summary = {
             "player_name": self._read(self.get_player_name),
             "date": self._read(self.get_date),
             "booking_time": self._read(self.get_booking_time),
             "duration": self._read(self.get_duration),
             "bays": self._read(self.get_bays),
-            "bay_type": self._read(self.get_bay_type),
             "total": self._read(self.get_total),
             "payment_method": self._read(self.get_payment_method),
         }
+        if bay_type != "":
+            summary["bay_type"] = self._read(self.get_bay_type)
+
+        swing_credit_earned = self.get_credits_earned()
+        if swing_credit_earned != "":
+            summary["credits_earned"] = swing_credit_earned
         self.capture_step(
             "dr_confirmed_summary",
             " | ".join(f"{k}={v}" for k, v in summary.items()),
@@ -107,8 +113,8 @@ class DrivingRangeBookingSuccessPage(AndroidBasePage):
     # ================= action steps =================
     def tap_finish(self):
         self.click(L.button_finish)
-        self.capture_step("dr_finish", "Tapped Finish")
+        self.capture_step("dr_finish")
 
     def tap_see_booking_details(self):
         self.click(L.button_see_details)
-        self.capture_step("dr_see_details", "Tapped See booking details")
+        self.capture_step("dr_see_details")

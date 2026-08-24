@@ -164,21 +164,20 @@ jobs:
             adb install -r -g apps/app.apk
             appium --base-path / --log-level error --log appium.log &
             bash .github/scripts/wait_for_appium.sh
-            pytest -m "${{ steps.scope.outputs.marker }}" --junitxml=reports/junit.xml --allure
+            pytest -m "${{ steps.scope.outputs.marker }}" --junitxml=reports/junit.xml
 
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: evidence-${{ needs.fetch-apk.outputs.build }}-${{ github.run_number }}
-          # PDF_OUTPUT=allure (the default) keeps the evidence PDFs inside
-          # allure-results as attachments, so reports/**/*.pdf only matches
-          # when a run sets PDF_OUTPUT=reports|both.
+          # a run that reports to ClickUp uploads its PDFs and deletes the
+          # local copies (PDF_CLEANUP), so reports/**/*.pdf only matches the
+          # evidence that was not uploaded
           path: |
             reports/**/*.pdf
             reports/regression_summary.txt
             reports/junit.xml
-            reports/allure-results/**
             appium.log
           retention-days: 14
           if-no-files-found: warn

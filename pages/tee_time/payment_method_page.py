@@ -8,7 +8,7 @@ class PaymentMethodPage(AndroidBasePage):
     def verify_screen(self):
         self.wait_until_loaded()
         assert self.is_visible(L.label_title, timeout=20), "Select payment method sheet not shown"
-        self.capture_step("payment_method", "Select payment method sheet is visible")
+        self.capture_step("payment_method")
 
     def verify_payment_option(self, name: str):
         # the e-wallet list sits below the saved cards, so scroll it into view
@@ -27,12 +27,12 @@ class PaymentMethodPage(AndroidBasePage):
 
     def tap_add_credit_card(self):
         self.click(L.button_add_credit_card)
-        self.capture_step("add_credit_card", "Tapped Add credit card")
+        self.capture_step("add_credit_card")
 
     # ================= other methods =================
     def select_qris(self):
         self.click(L.option_qris)
-        self.capture_step("select_qris", "Selected QRIS")
+        self.capture_step("select_qris")
 
     def select_payment_method(self, name: str):
         self.click(L.ewallet_by_name % name)
@@ -40,4 +40,4 @@ class PaymentMethodPage(AndroidBasePage):
 
     def tap_back(self):
         self.click(L.button_back)
-        self.capture_step("payment_back", "Tapped back")
+        self.capture_step("payment_back")

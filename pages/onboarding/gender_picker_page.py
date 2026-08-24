@@ -7,7 +7,7 @@ class GenderPickerPage(AndroidBasePage):
     # ================= verify steps =================
     def verify_screen(self):
         assert self.is_visible(L.option_not_specified, timeout=20), "Gender sheet not shown"
-        self.capture_step("gender_picker", "Gender sheet is visible")
+        self.capture_step("gender_picker")
 
     # ================= action steps =================
     def select_gender(self, gender: str):
@@ -16,8 +16,8 @@ class GenderPickerPage(AndroidBasePage):
 
     def tap_confirm(self):
         self.click(L.button_confirm)
-        self.capture_step("gender_confirm", "Confirmed gender")
+        self.capture_step("gender_confirm")
 
     def dismiss(self):
         self.click(L.scrim)
-        self.capture_step("gender_dismiss", "Dismissed gender sheet")
+        self.capture_step("gender_dismiss")
