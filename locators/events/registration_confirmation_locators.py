@@ -1,4 +1,4 @@
-class RegistrationConfirmationLocators :
+class RegistrationConfirmationLocators:
     # --- Header
     title_header = "//*[@content-desc='Registration confirmation']"
     button_back = "//*[@content-desc='Registration confirmation']/preceding-sibling::*"

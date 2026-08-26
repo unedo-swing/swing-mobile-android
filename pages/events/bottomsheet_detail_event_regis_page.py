@@ -17,7 +17,7 @@ class BottomsheetDetailEventRegisPage(AndroidBasePage):
     # ================= action steps =================
     def choose_registration_type(self, reg_type: str):
         self.click(L.button_option_registration % reg_type)
-        if self.is_visible(R.button_invite_friends) :
+        if self.is_visible(R.button_invite_friends):
             self.press_back()
         self.capture_step("reg_choose_type", f"Chose registration type: {reg_type}")
 

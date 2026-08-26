@@ -16,11 +16,12 @@ class EventDetailsPage(AndroidBasePage):
         self.capture_step("event_title", f"Event title shown: {name}")
 
     def verify_registration_closed_footer(self):
-        if self.is_visible(L.button_reminder) :
+        if self.is_visible(L.button_reminder):
             self.click(L.button_reminder)
-            
+
         self.scroll_to_element(L.label_successfully_reminder)
         assert self.is_visible(L.label_successfully_reminder, timeout=20), (
+            "Reminder confirmation ('notify you if') not shown"
         )
         self.capture_step(
             "event_reg_closed", "Registration closed: footer 'notify you if' is visible"

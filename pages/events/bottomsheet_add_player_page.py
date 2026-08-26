@@ -1,6 +1,5 @@
 from core.android_base_page import AndroidBasePage
-from locators.events.bottomsheet_add_player import BottomsheetAddPlayer as L
-import time
+from locators.events.bottomsheet_add_player_locators import BottomsheetAddPlayerLocators as L
 
 
 class BottomsheetAddPlayerPage(AndroidBasePage):
@@ -13,7 +12,7 @@ class BottomsheetAddPlayerPage(AndroidBasePage):
         self.capture_step("add_player_sheet", "Add a player bottom sheet shown")
 
     def verify_player_added(self, name: str):
-        if self.is_visible(L.button_close_bottomsheet_switch_to_group_registration) :
+        if self.is_visible(L.button_close_bottomsheet_switch_to_group_registration):
             self.press_back()
         self.capture_step("add_player_done", f"Player selected: {name}")
 

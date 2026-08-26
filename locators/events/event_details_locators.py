@@ -1,4 +1,4 @@
-class EventDetailsLocators :
+class EventDetailsLocators:
     # --- Header
     title_header = "//*[@content-desc='Event details']"
     button_back = "//*[@content-desc='Event details']/preceding-sibling::*"
