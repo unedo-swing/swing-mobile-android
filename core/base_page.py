@@ -78,6 +78,23 @@ class BasePage:
         except TimeoutException:
             return False
 
+    def is_not_visible(self, locator, timeout: int = 10, log: bool = True) -> bool:
+        """True when the element is gone (absent or hidden) within ``timeout``.
+
+        The mirror of ``is_visible``: use it for absence checks instead of
+        ``not self.is_visible(...)``, which only reports what the screen looked
+        like after the full wait elapsed.
+        """
+        if log:
+            self._log("is_not_visible", locator)
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.invisibility_of_element_located(self._resolve(locator))
+            )
+            return True
+        except TimeoutException:
+            return False
+
     # ------------------------------------------------------------------ #
     # Interactions  (each inlines its own wait so it logs exactly once)
     # ------------------------------------------------------------------ #
@@ -170,21 +187,29 @@ class BasePage:
     # ------------------------------------------------------------------ #
     def take_screenshot(self, name: str) -> str:
         """Save a screenshot to reports/screenshots and return its path."""
-        os.makedirs(settings.SCREENSHOTS_DIR, exist_ok=True)
-        safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
-        path = os.path.join(
-            settings.SCREENSHOTS_DIR, f"{safe}_{int(time.time() * 1000)}.png"
-        )
-        self.driver.save_screenshot(path)
+        path = self._screenshot_path(name)
+        self._save_screenshot(path)
         return path
 
-    def capture_step(self, title: str, description: str = "", data=None, compare=None):
+    def _screenshot_path(self, name: str) -> str:
+        os.makedirs(settings.SCREENSHOTS_DIR, exist_ok=True)
+        safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+        return os.path.join(
+            settings.SCREENSHOTS_DIR, f"{safe}_{int(time.time() * 1000)}.png"
+        )
+
+    def _save_screenshot(self, path: str):
+        """Hook: platform bases add their own fallback for when the driver can't."""
+        self.driver.save_screenshot(path)
+
+    def capture_step(self, title: str, description: str = "", data=None, compare=None,
+                     status: str = ""):
         print(f"[STEP] {title}" + (f" — {description}" if description else ""))
         path = self.take_screenshot(title)
         if self.reporter is not None:
             self.reporter.add_step(
                 title=title, description=description, screenshot=path,
-                data=data, compare=compare,
+                data=data, compare=compare, status=status,
             )
         return path
 

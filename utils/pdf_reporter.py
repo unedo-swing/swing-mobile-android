@@ -63,6 +63,8 @@ BRAND_PURPLE = colors.HexColor("#5C00E6")
 BRAND_PURPLE_DARK = colors.HexColor("#3D0099")
 BRAND_TINT = colors.HexColor("#C9A9FF")      # labels on the purple cover
 BRAND_WASH = colors.HexColor("#F3EBFF")      # table header fill on white pages
+FAIL_RED_HEX = "#E5484D"                     # failed steps, and the FAIL cover pill
+FAIL_RED = colors.HexColor(FAIL_RED_HEX)
 
 _ASSETS_DIR = os.path.join(settings.BASE_DIR, "assets")
 # The launcher icon: white wordmark on exactly BRAND_PURPLE, so dropping it on
@@ -70,6 +72,10 @@ _ASSETS_DIR = os.path.join(settings.BASE_DIR, "assets")
 LOGO_ON_PURPLE = os.path.join(_ASSETS_DIR, "swing_rounded_android.png")
 # Purple wordmark on transparency — for anything on a white background.
 LOGO_ON_WHITE = os.path.join(_ASSETS_DIR, "swing_logo_horizontal.png")
+
+
+def _step_failed(step: dict) -> bool:
+    return (step.get("status") or "").upper() == "FAIL"
 
 
 def humanize_step(slug: str) -> str:
@@ -169,7 +175,8 @@ class PDFReporter:
             self.tc_name = tc_name
 
     def add_step(self, title: str, description: str = "", screenshot: str | None = None,
-                 data: dict | None = None, compare: dict | None = None):
+                 data: dict | None = None, compare: dict | None = None,
+                 status: str = ""):
         self.steps.append(
             {
                 "title": title,
@@ -177,9 +184,11 @@ class PDFReporter:
                 "screenshot": screenshot,
                 "data": data,
                 "compare": compare,
+                "status": status,
                 "time": datetime.now(),
             }
         )
+
 
     # ------------------------------------------------------------------ #
     # Rendering
@@ -242,6 +251,14 @@ class PDFReporter:
             "step_title": ParagraphStyle(
                 "StepTitle", parent=styles["Heading3"], spaceBefore=10, spaceAfter=2,
                 textColor=BRAND_PURPLE_DARK,
+            ),
+            "step_title_fail": ParagraphStyle(
+                "StepTitleFail", parent=styles["Heading3"], spaceBefore=10, spaceAfter=2,
+                textColor=FAIL_RED,
+            ),
+            "error": ParagraphStyle(
+                "Error", parent=styles["Normal"], fontSize=9, textColor=FAIL_RED,
+                alignment=0, spaceBefore=2,
             ),
             "caption": ParagraphStyle(
                 "Caption", parent=styles["Normal"], fontSize=9, textColor=colors.grey,
@@ -360,7 +377,7 @@ class PDFReporter:
     def _draw_status_pill(canv, x: float, y: float, status: str):
         """PASS / FAIL as a rounded pill — the one thing a reader looks for."""
         label = (status or "N/A").upper()
-        fill = {"PASS": colors.HexColor("#0FA958"), "FAIL": colors.HexColor("#E5484D")}.get(
+        fill = {"PASS": colors.HexColor("#0FA958"), "FAIL": FAIL_RED}.get(
             label, colors.HexColor("#6B7280")
         )
         text_w = stringWidth(label, "Helvetica-Bold", 12)
@@ -411,6 +428,8 @@ class PDFReporter:
         elements = [Paragraph("Table of contents", s["toc_title"])]
         for i, step in enumerate(self.steps, start=1):
             label = f'{i}. {escape(humanize_step(step["title"]))}'
+            if _step_failed(step):
+                label += " — FAILED"
             when = step["time"].strftime("%H:%M:%S")
             when_suffix = f"   ({when})"
             when_w = stringWidth(when_suffix, "Helvetica", 8)
@@ -449,12 +468,14 @@ class PDFReporter:
         for i, step in enumerate(self.steps, start=1):
             title = escape(humanize_step(step["title"]))
             when = step["time"].strftime("%H:%M:%S")
+            failed = _step_failed(step)
+            tag = f'<font color="{FAIL_RED_HEX}"> [FAILED]</font>' if failed else ""
             # <a name> makes this the TOC link's click target; the custom
             # _toc_bookmark attribute is how the measurement pass finds it.
             title_para = Paragraph(
-                f'<a name="step{i}"/>Step {i}: {title}  '
+                f'<a name="step{i}"/>Step {i}: {title}{tag}  '
                 f'<font color="grey" size="9">({when})</font>',
-                s["step_title"],
+                s["step_title_fail"] if failed else s["step_title"],
             )
             title_para._toc_bookmark = f"step{i}"
             elements.append(title_para)
@@ -464,7 +485,7 @@ class PDFReporter:
                 elements.append(Spacer(1, 0.2 * cm))
                 elements.append(self._fit_image(shot))
 
-            body = self._step_body(step, s["caption"])
+            body = self._step_body(step, s["error"] if failed else s["caption"])
             if body is not None:
                 elements.append(Spacer(1, 0.15 * cm))
                 elements.append(body)
@@ -635,15 +656,6 @@ def init_pdf(test_name: str, enabled: bool | None = None,
 
 
 def generate_pdf(reporter: "PDFReporter | None", status: str = "PASS") -> str | None:
-    """
-    Build the PDF from a reporter — call it after the test's last step. No-op
-    (returns None) when reporter is None, so the same call works whether or not
-    evidence was enabled.
-
-    The file always lands in reports/. A run that reports to ClickUp uploads it
-    from there and then removes it — see utils/clickup_reporter.py and
-    settings.PDF_CLEANUP.
-    """
     if _active.get("reporter") is reporter:
         _active["generated"] = True
     if reporter is None:

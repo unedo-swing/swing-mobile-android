@@ -5,8 +5,8 @@ class HomeLocators:
     tab_account = '//android.widget.ImageView[starts-with(@content-desc,"Account")]'
 
     # --- header ---
-    search_bar = '//android.widget.ImageView[@content-desc="Search..."]'
-    region_selector = '//android.widget.ImageView[@content-desc="Search..."]/android.view.View'
+    search_bar = '//android.view.View[@resource-id="home_app_bar_search_button"]/android.widget.ImageView' ##'//android.widget.ImageView[@content-desc="Search..."]'
+    region_selector = '//android.view.View[contains(@resource-id, "home_app_bar_change_country_button")]' ##'//android.widget.ImageView[@content-desc="Search..."]/android.view.View'
     
     # -- Region Select
     title_select_region = '//android.view.View[@content-desc="Select country"]'
@@ -24,10 +24,6 @@ class HomeLocators:
 
     # --- membership / credits ---
     card_membership = '//*[contains(@content-desc,"Renews on")]'
-    # The Swing Pass card, for an account that already holds one — the way into
-    # the Swing Pass screen. Its second line switches wording once the Pass is
-    # cancelled ("Renews on ..." -> "Ends on ..."), so both are matched;
-    # card_membership above loses the card entirely for a cancelled member.
     card_swing_pass = (
         '//*[contains(@content-desc,"Renews on") or contains(@content-desc,"Ends on")]'
     )
@@ -77,3 +73,6 @@ class HomeLocators:
     card_leave_rating = '//android.view.View[contains(@content-desc,"Leave a rating")]'
     card_request_venue = '//android.view.View[contains(@content-desc,"Request a golf venue")]'
     card_contact_support = '//android.view.View[contains(@content-desc,"Contact Swing support")]'
+    
+    button_icon_sport_type = '//android.view.View[@content-desc="%s"]'
+    

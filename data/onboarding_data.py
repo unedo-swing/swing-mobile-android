@@ -37,6 +37,9 @@ class OnboardingData:
         cls.TC_ID = row.get("TC_ID")
         cls.TC_NAME = row.get("TC_NAME")
         # --- login leg (a brand-new number, so it lands on profile setup) ---
+        # REGION is the country the home screen must end up on, COUNTRY is the
+        # dial code picked on the login screen — same country for these cases.
+        cls.REGION = row.get("REGION")
         cls.COUNTRY = row.get("COUNTRY")
         cls.PHONE_NUMBER = _str_or_empty(row.get("PHONE_NUMBER"))
         cls.VERIFICATION_METHOD = (
@@ -44,6 +47,8 @@ class OnboardingData:
         )
         # normally blank: an unregistered number needs the real code typed in
         cls.OTP = _str_or_empty(row.get("OTP"))
+        # picked on the sport option screen right after onboarding finishes
+        cls.SPORT_TYPE = row.get("SPORT_TYPE")
         # --- profile setup ---
         cls.FIRST_NAME = row.get("FIRST_NAME")
         cls.LAST_NAME = row.get("LAST_NAME")

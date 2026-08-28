@@ -15,28 +15,9 @@ class SwingCreditsPage(AndroidBasePage):
             "'Redeem your Swing Credits' section not shown"
         self.capture_step("credits_redeem_section")
 
-    # ================= reading values =================
-    def _desc(self, locator) -> str:
-        return self.scroll_and_find(locator).get_attribute("content-desc") or ""
-
-    def get_balance(self) -> str:
-        balance = self._desc(L.value_balance)
-        self.capture_step("credits_balance", f"Balance: {balance}")
-        return balance
-
-    def verify_balance(self, expected: str):
-        actual = self.get_balance()
-        assert actual == expected, f"Balance is '{actual}', expected '{expected}'"
-
-    def is_always_use_enabled(self) -> bool:
-        switch = self.scroll_and_find(L.switch_always_use)
-        return switch.get_attribute("checked") == "true"
-
-    def get_reward_names(self) -> list:
-        return [
-            e.get_attribute("content-desc") or ""
-            for e in self.find_all(L.reward_card_any)
-        ]
+    def verify_bottom_region_swing_credits(self):
+        assert self.is_visible(L.label_select_country_swing_credit), "Bottom Sheet Select Region is not shown"
+        self.capture_step("Verify Bottom Sheet Select Region")
 
     # ================= action steps =================
     def toggle_always_use(self):
@@ -73,9 +54,17 @@ class SwingCreditsPage(AndroidBasePage):
         self.click(L.reward_card_by_name % name)
         self.capture_step("credits_open_reward", f"Opened reward '{name}'")
 
-    def change_region(self, code: str = "ID"):
-        self.click(L.button_region_by_code % code)
-        self.capture_step("credits_region", f"Tapped region '{code}'")
+    def change_region(self, region: str):
+        self.click(L.button_region)
+        self.verify_bottom_region_swing_credits()
+        if region == "ID":
+            country = "Indonesia"
+        elif region == "MY":
+            country = "Malaysia"
+        else:
+            country = "Indonesia"
+        self.click(L.button_selected_region % region)
+        self.capture_step(f"Select Region {country} Swing Credits ")
 
     def tap_back(self):
         self.click(L.button_back)

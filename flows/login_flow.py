@@ -8,6 +8,9 @@ from pages.home_page import HomePage
 from pages.account_page import AccountPage
 from pages.tee_time.explore_page import ExplorePage
 from pages.tee_time.golf_course_details_page import GolfCourseDetailsPage
+from pages.sport_option_page import SportOptionPage
+from pages.onboarding.whats_new_page import WhatsNewPage
+from pages.onboarding.coach_mark_page import CoachMarkPage
 
 import time
 
@@ -23,10 +26,11 @@ class LoginFlow(BaseFlow):
         self.account = self.page(AccountPage)
         self.explore = self.page(ExplorePage)
         self.course_details = self.page(GolfCourseDetailsPage)
-        # remembered so the OTP endpoint is asked about this exact login
+        self.sport_option_page = self.page(SportOptionPage)
+        self.whats_new = self.page(WhatsNewPage)
+        self.coach_mark = self.page(CoachMarkPage)
         self.phone_number = ""
         self.verification_method = "WHATSAPP"
-        # filled by select_country() from the login screen itself
         self.dial_code = ""
 
     def open_login(self):
@@ -54,7 +58,6 @@ class LoginFlow(BaseFlow):
         self.login.tap_continue()
     
     def select_verification_method(self, method: str):
-        """Pick the OTP channel named in the test data ("whatsapp" or "sms")."""
         self.verification_method = str(method or "whatsapp").strip().upper() or "WHATSAPP"
         if str(method).strip().casefold() == "sms":
             self.select_method_verification_sms()
@@ -72,8 +75,6 @@ class LoginFlow(BaseFlow):
     def fetch_otp_from_api(self, phone: str = "", dial_code: str = "", method: str = "") -> str:
         time.sleep(5)
         number = str(phone or self.phone_number or "").strip()
-        # the code read off the screen wins over the env default; an explicit
-        # argument still overrides both
         code_prefix = str(dial_code or self.dial_code or "").strip()
         response = ApiClient.swing().request_otp(
             number, code_prefix, method or self.verification_method,
@@ -147,7 +148,6 @@ class LoginFlow(BaseFlow):
         return self.location.dismiss_if_shown(timeout)
 
     def allow_permissions(self, timeout: int = 10) -> list:
-        """Grant whichever of the two bottom sheets show up, in the order the app asks."""
         granted = []
         if self.enable_notification_if_shown(timeout):
             granted.append("notification")
@@ -156,7 +156,6 @@ class LoginFlow(BaseFlow):
         return granted
 
     def skip_permissions(self, timeout: int = 10) -> list:
-        """Tap "I'll do it later" on whichever of the two bottom sheets show up."""
         skipped = []
         if self.dismiss_notification_if_shown(timeout):
             skipped.append("notification")
@@ -164,8 +163,26 @@ class LoginFlow(BaseFlow):
             skipped.append("location")
         return skipped
 
-    def verify_home(self):
-        self.home.verify_screen()
+    # ================= what's new (fresh install only) =================
+    def verify_whats_new(self):
+        self.whats_new.verify_screen()
+        # self.whats_new.verify_content()
+
+    def close_whats_new(self):
+        self.whats_new.tap_close()
+
+    def dismiss_whats_new(self, timeout: int = 10) -> bool:
+        return self.whats_new.dismiss_if_shown(timeout)
+
+    def check_whats_new(self, timeout: int = 10) -> bool:
+        if not self.whats_new.is_shown(timeout):
+            return False
+        self.verify_whats_new()
+        self.close_whats_new()
+        return True
+
+    def verify_coach_marks(self):
+        self.coach_mark.verify_sequence()
 
     def open_account(self):
         self.home.go_to_account()
@@ -179,3 +196,16 @@ class LoginFlow(BaseFlow):
         self.explore.open_course(name)
         self.course_details.verify_screen()
     
+    def verify_page_sport_option(self):
+        self.sport_option_page.verify_screen()
+    
+    def select_sport(self, sport: str):
+        self.sport_option_page.select_sport(sport)
+    
+    def verify_home(self, sport_type: str, region: str):
+        self.wait_until_load_home_page()
+        self.home.verify_screen(sport_type, region)
+    
+    def wait_until_load_home_page(self):
+        self.home.is_loaded_home_screen()
+        

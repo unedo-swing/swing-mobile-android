@@ -12,8 +12,6 @@ _SHEET = os.getenv("LOGIN_SHEET", "Login")
 
 
 def _str_or_empty(value):
-    """str(value), but an empty cell stays empty — a phone or OTP read from
-    Excel can come back as a number, and a blank must not become "None"."""
     return "" if value in (None, "") else str(value)
 
 
@@ -29,13 +27,12 @@ class LoginData:
         cls.TC_NAME = row.get("TC_NAME")
         cls.COUNTRY = row.get("COUNTRY")
         cls.PHONE_NUMBER = _str_or_empty(row.get("PHONE_NUMBER"))
-        # OTP channel: "whatsapp" (default) or "sms"
         cls.VERIFICATION_METHOD = (
             str(row.get("VERIFICATION_METHOD") or "whatsapp").strip().lower()
         )
-        # blank cell -> the test asks for the real code at the terminal
         cls.OTP = _str_or_empty(row.get("OTP"))
-        cls.EXPECTED_RESULT = row.get("EXPECTED_RESULT")
+        cls.SPORT_TYPE = row.get("SPORT_TYPE")
+        cls.REGION = row.get("REGION")
         return cls
 
 

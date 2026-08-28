@@ -52,36 +52,27 @@ ENV_RESOLVED = _select_env(PROD)
 import pytest
 
 from config import settings
-from core.driver_factory import create_driver
-from flows.login_flow import LoginFlow
-from flows.onboarding_flow import OnboardingFlow
-from flows.tee_time_flow import TeeTimeFlow
-from flows.driving_range_flow import DrivingRangeFlow
-from flows.swing_credits_flow import SwingCreditsFlow
-from flows.swing_pass_flow import SwingPassFlow
-from flows.events_flow import EventsFlow
-from flows.logout_flow import LogoutFlow
-from utils import clickup_reporter
-from utils.pdf_reporter import (
-    active_pdf_path,
-    active_reporter,
-    evidence_written,
-    generate_pdf,
-    register_flow,
-    reset_evidence,
-)
+from utils import adb, clickup_reporter
 
 
-APP_STATES = ("force-stop", "clear", "reinstall")
+# The fixtures live in their own modules so this file stays hooks-and-config
+# only, and so a duplicate fixture is visible inside a short file instead of
+# hiding 200 lines below the original. Imported after the env bootstrap above,
+# which they depend on.
+pytest_plugins = [
+    "fixtures.driver",
+    "fixtures.evidence",
+    "fixtures.flows",
+]
 
 SUITE_ORDER = [
-    # "test_onboarding.py",
-    # "test_login.py",
+    "test_login.py",
+    "test_onboarding.py",
     # "test_driving_range_booking.py",
     # "test_driving_range_booking_regular_player.py",
     # "test_swing_credits.py"
-    "test_driving_range_booking_regular_malaysia.py",
-    "test_driving_range_booking_cross_country.py"
+    # "test_driving_range_booking_regular_malaysia.py",
+    # "test_driving_range_booking_cross_country.py"
 ]
 
 _UNMARKED_ORDER = 100
@@ -132,7 +123,7 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         "--app-state",
-        choices=APP_STATES,
+        choices=settings.APP_STATES,
         default=os.getenv("APP_STATE", "force-stop"),
         help=(
             "How to prepare the app before each test: "
@@ -237,111 +228,6 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         tr.write_line(note)
 
 
-@pytest.fixture
-def app_state(request) -> str:
-    marker = request.node.get_closest_marker("app_state")
-    if marker is not None and marker.args:
-        state = marker.args[0]
-        if state not in APP_STATES:
-            raise ValueError(f"unknown app_state '{state}' — expected one of {APP_STATES}")
-        return state
-    return request.config.getoption("--app-state")
-
-
-@pytest.fixture
-def driver(app_state):
-    pkg = os.getenv("APP_PACKAGE", "app.getswing.dev")
-    device = os.getenv("DEVICE_NAME", "emulator-5554")
-    _prepare_app(app_state, pkg, device)
-
-    drv = create_driver()
-    _wait_app_ready(drv, pkg, timeout=int(os.getenv("APP_READY_TIMEOUT", "90")))
-    yield drv
-    drv.quit()
-
-
-@pytest.fixture(autouse=True)
-def pdf_evidence(request):
-    reset_evidence()
-    yield
-
-    rep_setup = getattr(request.node, "rep_setup", None)
-    rep_call = getattr(request.node, "rep_call", None)
-    failed_rep = next(
-        (r for r in (rep_setup, rep_call) if r is not None and r.failed), None
-    )
-    pdf = active_reporter()
-    pdf_path = active_pdf_path()
-    if failed_rep is not None and not evidence_written():
-        pdf_path = generate_pdf(pdf, status="FAIL")
-    # screenshots are embedded in the PDF now -> clear the folder once it's built
-    if pdf_path:
-        _empty_screenshots_dir()
-    # the ClickUp reporter uploads these at the end of the run and links each one
-    # next to its test case, then deletes the local file (see PDF_CLEANUP)
-    on_disk = pdf_path if (pdf_path and os.path.exists(pdf_path)) else None
-    if on_disk:
-        request.config._run_pdfs.append(on_disk)
-    skipped = any(r is not None and r.skipped for r in (rep_setup, rep_call))
-    request.config._run_results.append({
-        "test": request.node.nodeid,
-        "tc_id": getattr(pdf, "tc_id", "") or "",
-        "name": (getattr(pdf, "tc_name", "") or getattr(pdf, "test_name", "")
-                 or request.node.name),
-        "status": "FAILED" if failed_rep is not None else ("SKIPPED" if skipped else "PASSED"),
-        "pdf": on_disk,
-    })
-    if failed_rep is not None:
-        _record_failure(request, pdf, failed_rep, on_disk)
-
-
-@pytest.fixture
-def flow(driver, pdf_evidence):
-    def _make(flow_class):
-        return register_flow(flow_class(driver))
-    return _make
-
-
-@pytest.fixture
-def login_flow(flow):
-    return flow(LoginFlow)
-
-
-@pytest.fixture
-def logout_flow(flow):
-    return flow(LogoutFlow)
-
-
-@pytest.fixture
-def onboarding_flow(flow):
-    return flow(OnboardingFlow)
-
-
-@pytest.fixture
-def tee_time_flow(flow):
-    return flow(TeeTimeFlow)
-
-
-@pytest.fixture
-def driving_range_flow(flow):
-    return flow(DrivingRangeFlow)
-
-
-@pytest.fixture
-def swing_credits_flow(flow):
-    return flow(SwingCreditsFlow)
-
-
-@pytest.fixture
-def swing_pass_flow(flow):
-    return flow(SwingPassFlow)
-
-
-@pytest.fixture
-def events_flow(flow):
-    return flow(EventsFlow)
-
-
 def _run_order_key(item):
     file_name = os.path.basename(str(item.path))
     try:
@@ -354,8 +240,6 @@ def _run_order_key(item):
 
 
 def _run_metadata(config) -> dict:
-    """What this run is actually pointed at — which build, which device, which
-    reset. Feeds both the terminal header and the ClickUp run report."""
     from config.capabilities import resolved_app
 
     app = resolved_app()
@@ -364,134 +248,11 @@ def _run_metadata(config) -> dict:
         "target": f"{'PRODUCTION' if PROD else 'dev'} ({prefix}_* from .env)",
         "package": os.getenv("APP_PACKAGE", "app.getswing.dev"),
         "apk": app or "none — using the build installed on the device",
-        "device": os.getenv("DEVICE_NAME", "emulator-5554"),
+        "device": adb.serial(),
         "app state": config.getoption("--app-state"),
         "appium": settings.APPIUM_SERVER_URL,
         "platform": settings.PLATFORM,
     }
-
-
-def _adb(device: str, *args) -> int:
-    """Run one adb command against ``device``; never raises."""
-    import subprocess
-
-    command = ["adb", "-s", device, *args]
-    print(f"[app state] {' '.join(command)}")
-    return subprocess.run(command, check=False).returncode
-
-
-def _prepare_app(state: str, pkg: str, device: str):
-    """Put the app in the requested state before the driver starts.
-
-    force-stop : close the running app, keep its data (the default — fastest,
-                 and what the existing suites expect: still logged in, no
-                 first-run screens).
-    clear      : wipe the app's data, so the next launch behaves like a fresh
-                 install (What's new, coach marks, onboarding — and the login
-                 has to be done again).
-    reinstall  : uninstall it, so Appium installs the APK from the caps again.
-                 The heaviest reset; needed when the build itself changed.
-                 Refused when there is no APK to reinstall from (APP=none, i.e.
-                 a Play Store build) — it would uninstall the app under test
-                 and leave the device with nothing.
-    """
-    from config.capabilities import resolved_app
-
-    if state == "reinstall" and not resolved_app():
-        raise RuntimeError(
-            "--app-state reinstall needs an APK, but APP=none (using the installed "
-            f"build of '{pkg}'). Uninstalling it could not be undone from here — "
-            "reinstall it from the Play Store, or use --app-state clear instead."
-        )
-    _adb(device, "shell", "am", "force-stop", pkg)
-    if state == "clear":
-        _adb(device, "shell", "pm", "clear", pkg)
-    elif state == "reinstall":
-        _adb(device, "uninstall", pkg)
-
-
-# query_app_state() codes we care about: 4 is "running in foreground".
-_APP_IN_FOREGROUND = 4
-
-
-def _wait_app_ready(drv, pkg: str, timeout: int = 90) -> bool:
-    """Block until the app has finished starting after force-stop / clear.
-
-    Appium returns as soon as the activity is up, which on this Flutter build is
-    still the splash: the first find() then races the real first screen. Here we
-    wait for the app to be in the foreground AND for its view tree to stop
-    growing, so tests start against a rendered screen instead of a splash.
-
-    Never raises: a run that times out continues and fails on the screen's own
-    verify_screen(), which says what was expected instead of "element not found".
-    """
-    import time
-
-    deadline = time.time() + timeout
-    previous, stable_since, reason = "", None, "app never reached the foreground"
-    while time.time() < deadline:
-        try:
-            if drv.query_app_state(pkg) != _APP_IN_FOREGROUND:
-                previous, stable_since = "", None
-                reason = "app is not in the foreground yet"
-            else:
-                source = drv.page_source
-                if f'package="{pkg}"' not in source:
-                    previous, stable_since = "", None
-                    reason = "app is in the foreground but nothing is rendered yet"
-                elif source == previous:
-                    if time.time() - stable_since >= 1.0:
-                        print(f"[app state] app '{pkg}' is ready")
-                        return True
-                else:
-                    previous, stable_since = source, time.time()
-                    reason = "the screen is still rendering"
-        except Exception as exc:                      # driver hiccup while booting
-            previous, stable_since = "", None
-            reason = str(exc).splitlines()[0]
-        time.sleep(0.5)
-
-    print(f"[app state] app '{pkg}' not ready after {timeout}s — {reason}")
-    return False
-
-
-def _record_failure(request, pdf, rep, evidence):
-    """Stash a failed test's last step + screenshot for pytest_terminal_summary.
-
-    The screenshot file itself is deleted after the PDF is built, so we keep its
-    name (it's the last image in the PDF) and point to the PDF as the evidence.
-    The path is swapped for the file's ClickUp link once it has been uploaded.
-    """
-    last = pdf.steps[-1] if (pdf is not None and pdf.steps) else None
-    shot = last["screenshot"] if last else None
-    message = ""
-    if rep.longrepr is not None:
-        crash = getattr(rep.longrepr, "reprcrash", None)
-        message = (crash.message if crash is not None else str(rep.longrepr)) or ""
-    request.config._regression_failures.append({
-        "test": request.node.nodeid,
-        "phase": rep.when,  # "setup" or "call"
-        "last_step": last["title"] if last else "(no steps captured)",
-        "last_description": last["description"] if last else "",
-        "last_screenshot": os.path.basename(shot) if shot else None,
-        "pdf": evidence,
-        "error": message.strip().splitlines()[0] if message.strip() else "",
-    })
-
-
-def _empty_screenshots_dir():
-    """Delete every screenshot file in reports/screenshots (they now live in the
-    PDFs). Leaves the folder itself in place."""
-    folder = settings.SCREENSHOTS_DIR
-    if not os.path.isdir(folder):
-        return
-    for name in os.listdir(folder):
-        fp = os.path.join(folder, name)
-        try:
-            if os.path.isfile(fp):
-                os.remove(fp)
-        except OSError:
-            pass  # best-effort cleanup; never fail a test over this
 
 
 def _evidence(failure, links) -> str:

@@ -40,17 +40,27 @@ TIMEOUT = int(os.getenv("CLICKUP_TIMEOUT", "15"))
 UPLOAD_TIMEOUT = int(os.getenv("CLICKUP_UPLOAD_TIMEOUT", "120"))
 
 
+# Modes that walk the suite without running a single test body. Each one ends
+# with every test marked "skipped", so reporting would post an empty run over
+# the last real one. ``--setup-show`` is deliberately absent: it runs the tests
+# for real and only adds fixture tracing, so it still has something to say.
+DRY_RUN_OPTIONS = ("collectonly", "setupplan", "setuponly")
+
+
 def enabled(config) -> bool:
     """True when this run should report — ``--clickup`` or CLICKUP_REPORT=1.
 
-    ``--collect-only`` never reports: it runs no test, so it has nothing to say
-    and would post an empty report over the last real one.
+    A dry run never reports: ``--collect-only``, ``--setup-plan`` and
+    ``--setup-only`` run no test, so they have nothing to say and would post an
+    empty report over the last real one.
     """
     from config import settings
 
     if config is None:
         return bool(settings.CLICKUP_REPORT)
-    if config.getoption("no_clickup", False) or config.getoption("collectonly", False):
+    if config.getoption("no_clickup", False):
+        return False
+    if any(config.getoption(name, False) for name in DRY_RUN_OPTIONS):
         return False
     return bool(settings.CLICKUP_REPORT or config.getoption("clickup", False))
 

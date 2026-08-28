@@ -18,11 +18,6 @@ class SwingCreditsFlow(BaseFlow):
         self.redeem = self.page(RedeemSwingCreditsPage)
 
     # ================= open =================
-    def open_swing_credits(self):
-        self.home.verify_screen()
-        self.home.open_swing_credits()
-        self.credits.verify_screen()
-
     def get_balance(self) -> str:
         return self.credits.get_balance()
 
@@ -146,6 +141,22 @@ class SwingCreditsFlow(BaseFlow):
     def verify_credits(self, code_booking: str, tot_credits: str):
         self.verify_earned_credit(code_booking, tot_credits)
     
-    def verify_credit_using_referral(self):
-        self.history.select_filter(self.history.FILTERS[1])
+    def verify_history_credit_using_referral(self, region: str):
+        self.home.open_swing_credits()
+        self.credits.verify_screen()
+        self.credits.open_history()
+        self.history.select_filter_earn()
         self.history.verify_credit_using_referral()
+        
+        # check the other region will not have credit using referral
+        self.history.tap_back()
+        region_change = "MY" if region == "ID" else "ID"
+        self.credits.change_region(region_change)
+        self.credits.verify_screen()
+        self.credits.open_history()
+        self.history.select_filter_earn()
+        self.history.verify_not_visible_credit_using_referral()
+        self.history.tap_back()
+        self.credits.tap_back()
+        
+    

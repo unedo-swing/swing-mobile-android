@@ -5,12 +5,14 @@ Put here anything that only makes sense on Android: UiAutomator scroll gestures,
 keyboard/permission handling, hardware back, etc. Android page objects (or the
 Android variant of a shared page) inherit from this.
 """
+import os
 import time
 
 from appium.webdriver.common.appiumby import AppiumBy
 
 from config import settings
 from core.base_page import BasePage
+from utils import adb
 
 
 class AndroidBasePage(BasePage):
@@ -343,6 +345,30 @@ class AndroidBasePage(BasePage):
             if time.time() >= deadline:
                 return False
             time.sleep(0.5)
+
+    # ------------------------------------------------------------------ #
+    # Evidence
+    # ------------------------------------------------------------------ #
+    def _save_screenshot(self, path: str):
+        """Screenshot through the driver, falling back to ``adb screencap``.
+
+        Every driver command is proxied to the UiAutomator2 instrumentation on
+        the device; when that process crashes, the screenshot goes down with it
+        — precisely when the failed step needs its evidence. adb reads the
+        framebuffer directly, so the screen is still there to be captured, and
+        the PDF gets the picture of the failure instead of nothing.
+        """
+        try:
+            if (self.driver.save_screenshot(path)
+                    and os.path.exists(path) and os.path.getsize(path) > 0):
+                return
+            reason = "the driver returned no image"
+        except Exception as exc:
+            reason = str(exc).strip().splitlines()[0]
+        if adb.screencap(path):
+            self._log(f"screenshot taken over adb — {reason}")
+            return
+        raise RuntimeError(f"{reason}; adb screencap could not read the screen either")
 
     def _desc(self, locator) -> str:
         return self.scroll_and_find(locator).get_attribute("content-desc") or ""

@@ -51,7 +51,10 @@ class DrivingRangeData:
         cls.TC_NAME = row.get("TC_NAME")
         cls.MEMBERSHIP = row.get("MEMBERSHIP")
         cls.VENUE_TYPE = row.get("VENUE_TYPE")
+        # REGION is the code the home screen shows and the region sheet picks
+        # by ("ID" / "MY"), not the country name — home.select_region() maps it.
         cls.REGION = row.get("REGION")
+        cls.SPORT_TYPE = row.get("SPORT_TYPE") or "Golf"
         cls.DRIVING_RANGE_NAME = row.get("DRIVING_RANGE_NAME")
         cls.BOOKING_DATE = row.get("BOOKING_DATE")
         cls.BAY_NAME = row.get("BAY_NAME")

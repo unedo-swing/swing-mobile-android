@@ -4,21 +4,25 @@ from locators.home_locators import HomeLocators as L
 
 class HomePage(AndroidBasePage):
 
-    # ================= verify steps =================
-    def verify_screen(self):
-        assert self.is_visible(L.tab_home, timeout=20), "Home screen not shown"
-        self.capture_step("home_screen")
-
-    def is_loaded(self) -> bool:
-        return self.is_visible(L.tab_home, timeout=20)
-
-    def verify_greeting_for(self, name: str):
-        greeting = self.get_text(L.label_greeting) or ""
-        # content-desc holds the label; read it if text is empty
-        if not greeting:
-            greeting = self.find(L.label_greeting).get_attribute("content-desc") or ""
-        self.capture_step("home_greeting", f"Greeting: {greeting}")
-        assert name in greeting, f"Greeting '{greeting}' does not mention '{name}'"
+    # ================= verify Page =================
+    def verify_button_sport_icon(self, sport_type: str = "Golf"):
+        assert self.is_visible(L.button_icon_sport_type % sport_type), "Sport Icon is Missing"
+        self.capture_step(f"Button Sport {sport_type} is Show")
+    
+    def verify_button_region_select(self, region: str):
+        assert self.is_visible(L.region_selector), "Regions Selector is Missing"
+        assert self._desc(L.region_selector) == region, "Region Selected is Wrong"
+        self.capture_step(f"Selected Region {region} is Visible")
+    
+    def verify_screen(self, sport_type: str, region: str):
+        self.verify_button_sport_icon(sport_type)
+        if sport_type == "Golf":
+            self.verify_button_region_select(region)
+    
+    def is_loaded_home_screen(self, timeout: int = 5):
+        self.wait_for(timeout)
+        self.capture_step(f"Wait Until Home is Loaded For {timeout} seconds")
+            
 
     # ================= quick actions =================
     def open_tee_time(self):
@@ -48,7 +52,6 @@ class HomePage(AndroidBasePage):
 
     def open_swing_credits(self):
         self.go_to_home()
-        self.verify_screen()
         self.click(L.label_credits)
         self.capture_step("open_swing_credits")
     
@@ -66,9 +69,15 @@ class HomePage(AndroidBasePage):
         self.click(L.button_close_bottom_sheet_select_region)
         self.capture_step("close_bottom_sheet")
     
-    def select_region(self, region_name: str):
-        self.click(L.label_region % region_name)
-        self.capture_step(f"tap region : {region_name} ", f"Tap Region: {region_name}")
+    def select_region(self, region: str):
+        if region == "ID":
+            country = "Indonesia"
+        elif region == "MY":
+            country = "Malaysia"
+        else:
+            country = "Indonesia"
+        self.click(L.label_region % country)
+        self.capture_step(f"tap region : {country} ", f"Tap Region: {country}")
         
 
     # ================= explore: golf courses =================
