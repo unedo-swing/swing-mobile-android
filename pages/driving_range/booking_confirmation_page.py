@@ -4,14 +4,10 @@ from core.android_base_page import AndroidBasePage
 from locators.driving_range.booking_confirmation_locators import (
     DrivingRangeBookingConfirmationLocators as L,
 )
+from utils.amounts import last_amount
 
 
 _BONUS_BALLS = re.compile(r"\+\s*([\d.,]+)\s*balls", re.IGNORECASE)
-AMOUNT_RE = re.compile(r"\b(?:Rp|RM)\.?\s*\d[\d.,]*(?<![.,])")
-
-
-def _amounts(text: str) -> list[str]:
-    return AMOUNT_RE.findall(text or "")
 
 
 def _bonus_balls(text: str) -> str:
@@ -117,20 +113,16 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         return self._desc(L.price_row_by_name % name).strip()
 
     def get_price_row_amount(self, name: str) -> str:
-        amounts = _amounts(self.get_price_row(name))
-        return amounts[-1] if amounts else ""
+        return last_amount(self.get_price_row(name))
 
     def get_price_row_bonus_balls(self, name: str) -> str:
         return _bonus_balls(self.get_price_row(name))
 
     def get_processing_fee(self) -> str:
-        # "Processing fee\nRp. 10,000\nRp. 0" — the last amount is what is actually charged
-        amounts = _amounts(self._desc(L.label_processing_fee))
-        return amounts[-1] if amounts else ""
+        return last_amount(self._desc(L.label_processing_fee))
 
     def get_total_payment(self) -> str:
-        amounts = _amounts(self._desc(L.label_total_payment))
-        return amounts[-1] if amounts else ""
+        return last_amount(self._desc(L.label_total_payment))
 
     def get_credits_used(self) -> str:
         if not self.is_visible_after_scroll(L.label_swing_credits_used):

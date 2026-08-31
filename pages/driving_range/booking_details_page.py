@@ -1,47 +1,8 @@
-import re
-from decimal import Decimal, InvalidOperation
-
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.booking_details_locators import (
     DrivingRangeBookingDetailsLocators as L,
 )
-
-
-AMOUNT_RE = re.compile(r"\b(RM|Rp)\.?\s*([\d.,]*\d)")
-
-
-def _amounts(text: str) -> list[str]:
-    return [match.group() for match in AMOUNT_RE.finditer(text or "")]
-
-# ID: 1.500.000,00  |  MY: 1,500,000.00
-_SEPARATORS = {"Rp": (".", ","), "RM": (",", ".")}
-
-
-def parse_amount(text: str, default_symbol: str = "Rp") -> Decimal | None:
-    if not text:
-        return None
-    m = AMOUNT_RE.search(text)
-    if m:
-        symbol, digits = m.group(1), m.group(2)
-    else:
-        m = re.search(r"[\d.,]*\d", text)
-        if not m:
-            return None
-        symbol, digits = default_symbol, m.group()
-
-    thousands, decimal = _SEPARATORS[symbol]
-    digits = digits.replace(thousands, "").replace(decimal, ".")
-    try:
-        return Decimal(digits)
-    except InvalidOperation:
-        return None
-
-
-def amounts_equal(expected: str, actual: str) -> bool:
-    m = AMOUNT_RE.search(actual) or AMOUNT_RE.search(expected)
-    symbol = m.group(1) if m else "Rp"
-    a, b = parse_amount(expected, symbol), parse_amount(actual, symbol)
-    return a is not None and a == b
+from utils.amounts import amounts_equal, last_amount
 
 
 class DrivingRangeBookingDetailsPage(AndroidBasePage):
@@ -98,8 +59,7 @@ class DrivingRangeBookingDetailsPage(AndroidBasePage):
 
     # ================= payment summary =================
     def _last_amount(self, label: str) -> str:
-        amounts = _amounts(self._row(label))
-        return amounts[-1] if amounts else ""
+        return last_amount(self._row(label))
 
     def get_subtotal(self) -> str:
         return self._last_amount("Subtotal")

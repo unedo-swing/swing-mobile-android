@@ -1,15 +1,8 @@
-import re
-
 from core.android_base_page import AndroidBasePage
 from locators.driving_range.booking_summary_locators import (
     DrivingRangeBookingSummaryLocators as L,
 )
-
-
-AMOUNT_RE = re.compile(r"\b(?:Rp|RM)\.?\s*\d[\d.,]*(?<![.,])")
-
-def _amounts(text: str) -> list[str]:
-    return AMOUNT_RE.findall(text or "")
+from utils.amounts import last_amount
 
 
 class DrivingRangeBookingSummaryPage(AndroidBasePage):
@@ -63,8 +56,7 @@ class DrivingRangeBookingSummaryPage(AndroidBasePage):
 
     # ================= price details =================
     def _last_amount(self, label: str) -> str:
-        amounts = _amounts(self._row(label))
-        return amounts[-1] if amounts else ""
+        return last_amount(self._row(label))
 
     def get_processing_fee(self) -> str:
         return self._last_amount("Processing fee")

@@ -15,6 +15,11 @@ from core.base_page import BasePage
 from utils import adb
 
 
+def desc_of(element) -> str:
+    desc = element.get_attribute("content-desc")
+    return "" if desc in (None, "null") else desc
+
+
 class AndroidBasePage(BasePage):
 
     # ------------------------------------------------------------------ #
@@ -208,10 +213,16 @@ class AndroidBasePage(BasePage):
             element = self.scroll_to_element(locator, max_swipes)
         return element
 
-    def is_visible_after_scroll(self, locator, timeout: int = 5) -> bool:
+    def is_visible_after_scroll(self, locator, timeout: int = 5, log: bool = True) -> bool:
+        """``is_visible``, but scroll the whole screen looking for it first.
+
+        Takes ``log`` for the same reason ``is_visible`` does: an optional
+        element (credits earned, a promo row) is *expected* to be missing half
+        the time, and logging that lookup reads like a failure in the step log.
+        """
         if self.find_anywhere(locator) is None:
             return False
-        return self.is_visible(locator, timeout)
+        return self.is_visible(locator, timeout, log)
 
     def scroll_and_find(self, locator):
         if self.is_visible(locator):
@@ -371,4 +382,4 @@ class AndroidBasePage(BasePage):
         raise RuntimeError(f"{reason}; adb screencap could not read the screen either")
 
     def _desc(self, locator) -> str:
-        return self.scroll_and_find(locator).get_attribute("content-desc") or ""
+        return desc_of(self.scroll_and_find(locator))

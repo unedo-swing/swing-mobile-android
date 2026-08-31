@@ -59,6 +59,28 @@ class BasePage:
         self._log("find_all", locator)
         return self.driver.find_elements(*self._resolve(locator))
 
+    def count_all(self, locator, minimum: int = 1, timeout: int = 10) -> int:
+        """How many elements match — waiting until at least ``minimum`` do.
+
+        ``find_all`` answers with whatever is in the tree at that instant, and
+        on a lazily built screen that can be a section the app has only started
+        to render: the heading is there, the rows underneath it are not, and the
+        count comes back 0 as if nothing were listed. Returns the last count
+        either way, so a genuine zero still reads as zero once ``timeout`` is up.
+        """
+        self._log(f"count_all (min {minimum})", locator)
+        by, value = self._resolve(locator)
+        deadline = time.time() + timeout
+        self.driver.implicitly_wait(0)
+        try:
+            while True:
+                count = len(self.driver.find_elements(by, value))
+                if count >= minimum or time.time() >= deadline:
+                    return count
+                time.sleep(0.3)
+        finally:
+            self.driver.implicitly_wait(settings.IMPLICIT_WAIT)
+
     def wait_visible(self, locator):
         self._log("wait_visible", locator)
         return self.wait.until(EC.visibility_of_element_located(self._resolve(locator)))

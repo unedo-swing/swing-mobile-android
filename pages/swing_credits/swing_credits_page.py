@@ -63,7 +63,7 @@ class SwingCreditsPage(AndroidBasePage):
             country = "Malaysia"
         else:
             country = "Indonesia"
-        self.click(L.button_selected_region % region)
+        self.click(L.button_selected_region % country)
         self.capture_step(f"Select Region {country} Swing Credits ")
 
     def tap_back(self):
