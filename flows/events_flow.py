@@ -9,6 +9,7 @@ from pages.events.registration_confirmation_page import RegistrationConfirmation
 from pages.events.bottomsheet_add_player_page import BottomsheetAddPlayerPage
 from pages.events.payment_method_page import PaymentMethodPage
 from pages.events.order_page import OrderPage
+from pages.events.bottomsheet_switch_registration_type import BottomsheetSwitchRegistrationType
 
 
 class EventsFlow(BaseFlow):
@@ -22,6 +23,7 @@ class EventsFlow(BaseFlow):
         self.add_player = self.page(BottomsheetAddPlayerPage)
         self.payment = self.page(PaymentMethodPage)
         self.order = self.page(OrderPage)
+        self.switch = self.page(BottomsheetSwitchRegistrationType)
 
     def open_events(self):
         self.home.open_events()
@@ -45,6 +47,9 @@ class EventsFlow(BaseFlow):
         self.reg_sheet.choose_registration_type(reg_type)
         self.confirm.verify_screen()
 
+    def switch_registration(self, reg_type: str):
+        self.reg_sheet.choose_registration_type(reg_type)
+
     def add_player_by_name(self, name: str):
         self.confirm.tap_add_player()
         self.add_player.verify_screen()
@@ -59,6 +64,29 @@ class EventsFlow(BaseFlow):
         self.payment.select_payment_method(method)
         self.confirm.verify_screen()
         self.confirm.verify_payment_selected(method)
+
+    def edit_registartion_type(self, reg_type: str):
+        self.confirm.tap_edit_registration_type(reg_type)
+
+    def confirm_switch_registration(self):
+        self.switch.verify_screen_switch_bottomsheet()
+        self.switch.choose_switch_registration_type()
+
+    def verify_registration_type(self, reg_type: str):
+        self.confirm.verify_registration_type_inside_confirmation_page(reg_type)
+
+    def verify_total_player(self, player: int):
+        self.confirm.verify_remove_player_count(player)
+
+    def tap_remove_player_button(self, player_num: int):
+        self.confirm.tap_remove_player(player_num)
+        self.confirm.verify_bottomsheet_remove_player()
+
+    def confirm_remove_player(self):
+        self.confirm.tap_confirm_remove_player()
+
+    def confirm_keep_player(self):
+        self.confirm.tap_confirm_keep_player()
 
     def pay_now(self):
         self.confirm.tap_pay_now()

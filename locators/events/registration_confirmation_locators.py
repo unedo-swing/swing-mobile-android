@@ -16,6 +16,9 @@ class RegistrationConfirmationLocators :
     switch_button_swing_credit = "//android.widget.Switch[contains(@content-desc, 'Swing Credit')]"
     button_add_player = "//android.widget.ImageView[@content-desc='Add a player' or contains(@content-desc, 'more players')]"
     input_notes = "//android.widget.EditText[starts-with(@hint, 'Add notes')]"
+    button_change_event_type = "//android.view.View[@content-desc='%s']/following-sibling::android.widget.ImageView[1]"
+    button_remove_player_specific = "(//android.widget.ImageView[@content-desc='Remove player'])[%i]"
+    button_remove_player_all = "//android.widget.ImageView[@content-desc='Remove player']"
 
     # --- Price details
     text_price_details = "//*[@content-desc = 'Price details']"
@@ -28,4 +31,13 @@ class RegistrationConfirmationLocators :
     # --- Footer details
     button_pay_now = "//android.widget.ImageView[@content-desc='Pay now']"
 
+
+
+    # --- bottomsheets invite friend
     button_invite_friends = "//android.widget.ImageView[@content-desc='Invite friends']"
+
+    #bottomsheet remove friend
+    title_header_bottomsheet_remove_friends = "//android.view.View[starts-with(@content-desc, 'Remove ')]"
+    button_remove_player_bottomsheet = "//android.widget.Button[starts-with(@content-desc, 'Remove ')]"
+    button_keep_player_bottomsheet = "//android.widget.Button[starts-with(@content-desc, 'Keep ')]"
+
