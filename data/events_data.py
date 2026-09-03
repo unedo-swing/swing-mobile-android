@@ -17,6 +17,7 @@ class EventsData:
     REGISTRATION_TIME = ""
     PLAYER_NAME = ""
     PAYMENT_METHOD = ""
+    SWITCH_REGISTRATION_TYPE = ""
 
     @classmethod
     def _assign(cls, row: dict):
@@ -27,6 +28,7 @@ class EventsData:
         cls.REGISTRATION_TIME = row.get("REGISTRATION_TIME", "")
         cls.PLAYER_NAME = row.get("PLAYER_NAME", "")
         cls.PAYMENT_METHOD = row.get("PAYMENT_METHOD", "")
+        cls.SWITCH_REGISTRATION_TYPE = row.get("SWITCH_REGISTRATION_TYPE", "")
 
     @classmethod
     def load(cls, tc_id: str | None = None):
