@@ -41,8 +41,8 @@ class LoginFlow(BaseFlow):
         self.login.tap_continue()
     
     def input_otp(self):
-        otp = input("Input Your OTP : ")
-        self.login.enter_code(otp)
+        # otp = input("Input Your OTP : ")
+        self.login.enter_code("000000")
 
     def verify_login_success(self):
         self.notif.verify_screen()
@@ -64,3 +64,6 @@ class LoginFlow(BaseFlow):
     def open_course_details(self, name: str):
         self.explore.open_course(name)
         self.course_details.verify_screen()
+
+    def popup_reminder_handle(self):
+        self.home.close_reminder_popup_ifany()

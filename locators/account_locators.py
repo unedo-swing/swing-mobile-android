@@ -39,6 +39,9 @@ class AccountLocators:
 
     # --- log out ---
     button_log_out = '//android.widget.ImageView[@content-desc="Log out"]'
+    button_dialog_log_out_confirm = '//*[@content-desc="Log out"]'
+    text_dialog_log_out_title = '//*[@content-desc="Log out?"]'
+    button_dialog_log_out_cancel = '//*[@content-desc="Cancel log out"]'
 
     # generic menu row by its label: menu_item % '"Saved credit cards"'
     menu_item = '//android.view.View[@content-desc="%s"]'

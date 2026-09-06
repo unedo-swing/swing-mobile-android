@@ -73,9 +73,13 @@ class AccountPage(AndroidBasePage):
 
     # --- log out ---
     def tap_log_out(self):
-        self.scroll_to_text("Log out")
+        # self.scroll_to_text("Log out")
         self.click(L.button_log_out)
         self.capture_step("log_out", "Tapped Log out")
+
+    def confirm_logout(self):
+        self.click(L.button_dialog_log_out_confirm)
+        self.capture_step("log_out_confirm", "Confirmed logout")
 
     def open_menu(self, label: str):
         """Open any Account menu row by its visible label."""

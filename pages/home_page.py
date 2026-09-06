@@ -139,3 +139,14 @@ class HomePage(AndroidBasePage):
     def go_to_account(self):
         self.click(L.tab_account)
         self.capture_step("nav_account", "Navigated to Account tab")
+
+    def close_reminder_popup_ifany(self):
+        while self.is_visible(L.button_do_it_latter):
+            self.click(L.button_do_it_latter)
+
+        if self.is_visible(L.button_back_reminder_popup):
+            self.click(L.button_back_reminder_popup)
+
+        while self.is_visible(L.button_gotit_tutorial):
+            self.click(L.button_gotit_tutorial)
+

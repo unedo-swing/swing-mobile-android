@@ -47,6 +47,7 @@ from reportlab.platypus import (
 )
 
 from config import settings
+import config as _config_module
 
 
 # Feature prefixes used in capture_step slugs -> readable labels.
@@ -466,4 +467,11 @@ def generate_pdf(reporter: "PDFReporter | None", status: str = "PASS") -> str | 
         return None
     path = reporter.generate(status=status)
     print(f"\n[evidence] PDF written to: {path}")
+    
+    try:
+        if not hasattr(_config_module, "_clickup_pdf_paths"):
+            _config_module._clickup_pdf_paths = []
+        _config_module._clickup_pdf_paths.append(str(path))
+    except Exception:
+        pass
     return path
