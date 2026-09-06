@@ -32,6 +32,7 @@ from flows.tee_time_flow import TeeTimeFlow
 from flows.driving_range_flow import DrivingRangeFlow
 from flows.logout_flow import LogoutFlow
 from flows.events_flow import EventsFlow
+from flows.multisport_flow import MultisportFlow
 from utils.pdf_reporter import init_pdf, generate_pdf
 from utils.excel_reader import find_rows
 from data.driving_range_data import _DATA_PATH as _DR_PATH, _SHEET as _DR_SHEET
@@ -172,6 +173,11 @@ def logout_flow(driver):
 @pytest.fixture
 def events_flow(driver, reporter):
     return EventsFlow(driver, reporter)
+
+
+@pytest.fixture
+def multisport_flow(driver, reporter):
+    return MultisportFlow(driver, reporter)
 
 
 @pytest.fixture
