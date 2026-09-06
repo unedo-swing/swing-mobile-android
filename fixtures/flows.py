@@ -15,6 +15,7 @@ from flows.onboarding_flow import OnboardingFlow
 from flows.swing_credits_flow import SwingCreditsFlow
 from flows.swing_pass_flow import SwingPassFlow
 from flows.tee_time_flow import TeeTimeFlow
+from flows.multisport_flow import MultisportFlow
 from utils.pdf_reporter import register_flow
 
 
@@ -63,3 +64,7 @@ def swing_pass_flow(flow):
 @pytest.fixture
 def events_flow(flow):
     return flow(EventsFlow)
+
+@pytest.fixture
+def multisport_flow(flow):
+    return flow(MultisportFlow)
