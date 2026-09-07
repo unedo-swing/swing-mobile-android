@@ -1,5 +1,5 @@
 class SportOptionPageLocators:
-    button_global_to_sport_option_page = "//*[@resource-id='home_multisport_app_bar_sport_option_button']"
+    button_global_to_sport_option_page = "//*[contains(@resource-id, 'app_bar_sport_option_button')]"
 
     #--- Header page
     hedaer_sport_option_page = "//*[@resource-id='sport_option_page_title']"

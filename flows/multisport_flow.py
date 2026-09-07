@@ -1,3 +1,4 @@
+from flows.base_flow import BaseFlow
 from pages.multisport.sport_option_page import SportOptionPage
 from pages.multisport.billiard_page import BilliardPage
 from pages.multisport.all_venue_list_page import AllVenueListPage
@@ -9,7 +10,7 @@ from pages.multisport.bottomsheet_add_player_page import BottomsheetAddPlayerPag
 from pages.multisport.order_page import OrderPage
 
 
-class MultisportFlow:
+class MultisportFlow(BaseFlow):
 
     def __init__(self, driver, reporter=None):
         self.driver = driver
