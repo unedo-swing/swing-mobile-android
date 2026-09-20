@@ -8,6 +8,7 @@ from pages.multisport.booking_confirmation_page import BookingConfirmationPage
 from pages.multisport.payment_method_page import PaymentMethodPage
 from pages.multisport.bottomsheet_add_player_page import BottomsheetAddPlayerPage
 from pages.multisport.order_page import OrderPage
+from pages.multisport.additional_items_page import AdditionalItemsPage
 
 
 class MultisportFlow(BaseFlow):
@@ -24,6 +25,7 @@ class MultisportFlow(BaseFlow):
         self.payment_method = PaymentMethodPage(driver, reporter)
         self.add_player = BottomsheetAddPlayerPage(driver, reporter)
         self.order = OrderPage(driver, reporter)
+        self.additional_items = AdditionalItemsPage(driver, reporter)
 
     # -------- initiation from Home --------
     def open_multisport_sport(self):
@@ -70,6 +72,32 @@ class MultisportFlow(BaseFlow):
 
     def remove_player(self):
         self.booking_confirmation.delete_player()
+
+    # -------- additional items --------
+    def add_additional_items_flow(self, items: list[str]):
+        if not items:
+            return
+        self.additional_items.verify_screen()
+        for item_name in items:
+            self.additional_items.pick_item(item_name)
+            self.additional_items.add_item()
+            self.additional_items.save_items()
+            self.additional_items.verify_selected_additional_items(item_name)
+
+    def confirm_additional_item(self):
+        self.additional_items.confirm_items()
+        self.booking_confirmation.verify_screen()
+
+    def remove_additional_item(self, items: list[str]):
+        if not items:
+            return
+        self.additional_items.verify_screen()
+        for item_name in items:
+            self.additional_items.edit_item(item_name)
+            self.additional_items.remove_item()
+            self.additional_items.save_items()
+            self.additional_items.verify_removed_additional_items(item_name)
+            
 
     def pay_now(self):
         self.booking_confirmation.tap_pay_now()

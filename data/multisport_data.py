@@ -19,6 +19,7 @@ class MultisportData:
     HOW_MUCH_SCHEDULE: int = 1
     PLAYER_NAME: str = ""
     PAYMENT_METHOD: str = ""
+    ADDITIONAL_ITEMS: str = ""
 
     @classmethod
     def _assign(cls, row: dict):
@@ -30,6 +31,18 @@ class MultisportData:
         cls.HOW_MUCH_SCHEDULE = cls._int_or_empty(row.get("HOW_MUCH_SCHEDULE"))
         cls.PLAYER_NAME = row.get("PLAYER_NAME", "")
         cls.PAYMENT_METHOD = row.get("PAYMENT_METHOD", "")
+        cls.ADDITIONAL_ITEMS = row.get("ADDITIONAL_ITEMS", "")
+
+    @classmethod
+    def items_list(cls) -> list[str]:
+        """Parse ADDITIONAL_ITEMS as a comma-separated list.
+
+        Example: "BALLS,CUE,RACK" → ["BALLS", "CUE", "RACK"]
+        Empty string → [].
+        """
+        if not cls.ADDITIONAL_ITEMS:
+            return []
+        return [item.strip() for item in cls.ADDITIONAL_ITEMS.split(",") if item.strip()]
 
     @staticmethod
     def _int_or_empty(value):
