@@ -89,35 +89,31 @@ class DrivingRangeBookingSummaryPage(AndroidBasePage):
         if range_name is not None:
             self.verify_range_name(range_name)
 
-        actual = {
-            "Player": self.get_player_name(),
-            "Date": self.get_date(),
-            "Time": self.get_booking_time(),
-            "Duration": self.get_duration(),
-            "Bays": self.get_bays(),
-            "BayType": self.get_bay_type(),
-            "Total": self.get_total_payment(),
+        fields = {
+            "Player": (player_name, self.get_player_name),
+            "Date": (date, self.get_date),
+            "Time": (booking_time, self.get_booking_time),
+            "Duration": (duration, self.get_duration),
+            "Bays": (bays, self.get_bays),
+            "BayType": (bay_type, self.get_bay_type),
+            "Total": (total, self.get_total_payment),
+        }
+
+        checked = {
+            key: (str(exp).strip(), self._read(getter))
+            for key, (exp, getter) in fields.items()
+            if exp is not None and str(exp).strip()
         }
 
         self.capture_step(
             "dr_summary_verify",
-            " | ".join(f"{k}={v}" for k, v in actual.items()),
+            " | ".join(f"{k}={act}" for k, (_, act) in checked.items()),
         )
 
-        expected = {
-            "Player": player_name,
-            "Date": date,
-            "Time": booking_time,
-            "Duration": duration,
-            "Bays": bays,
-            "BayType": bay_type,
-            "Total": total,
-        }
-
         failures = [
-            f"{k}: expected {exp!r} in actual {actual[k]!r}"
-            for k, exp in expected.items()
-            if exp is not None and exp not in actual[k]
+            f"{k}: expected {exp!r} in actual {act!r}"
+            for k, (exp, act) in checked.items()
+            if exp not in act
         ]
         assert not failures, "Booking summary mismatch -> " + "; ".join(failures)
 

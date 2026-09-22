@@ -20,7 +20,12 @@ class HistoryLocators:
         '//android.view.View[@clickable="true" and '
         '(contains(@content-desc,"earned") or contains(@content-desc,"used"))]'
     )
-    entry_by_booking_id = '//android.view.View[contains(@content-desc,"#%s") and @clickable="true"]'
+    entry_by_booking_id = '//android.view.View[contains(@content-desc,"%s") and @clickable="true"]'
+    # entry_by_booking_id_and_credit % ("#1JZNS", "-50") -> "Booking #1JZNS\n- 50"
+    entry_by_booking_id_and_credit = (
+        '//android.view.View[contains(@content-desc,"%s") '
+        'and contains(translate(@content-desc," ",""),"%s") and @clickable="true"]'
+    )
     entry_by_text = '//android.view.View[contains(@content-desc,"%s") and @clickable="true"]'
     entry_referral = '//android.view.View[contains(@content-desc,"referral")]'
     entry_referral_reward = '//android.view.View[contains(@content-desc,"Reward for using") and contains(@content-desc,"referral") and contains(translate(@content-desc,",",""),"50000")]'

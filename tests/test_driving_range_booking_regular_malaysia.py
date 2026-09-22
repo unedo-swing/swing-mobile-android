@@ -8,13 +8,13 @@ from utils.pdf_reporter import init_pdf, generate_pdf
 class TestDrivingRangeBookingRegularMalaysia:
 
     @pytest.mark.app_state("force-stop")
-    @pytest.mark.skip
+    @pytest.mark.regression
     @pytest.mark.parametrize("TC_ID", ["DR_MY_RP_001"])
     def test_end_to_end_booking_driving_range_without_promo_regular_malaysia(self,TC_ID, login_flow, driving_range_flow):
         D.load(TC_ID)
         ADD_ONS = load_add_ons(TC_ID)
         pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
-        login_flow.verify_home()
+        login_flow.verify_home(D.SPORT_TYPE, D.REGION)
         driving_range_flow.select_region(D.REGION)
         driving_range_flow.open_driving_range()
         driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
@@ -40,13 +40,13 @@ class TestDrivingRangeBookingRegularMalaysia:
 
 
     @pytest.mark.app_state("force-stop")
-    @pytest.mark.skip
+    @pytest.mark.regression
     @pytest.mark.parametrize("TC_ID", ["DR_MY_RP_003"])
     def test_end_to_end_booking_driving_range_with_redeem_promo_regular_malaysia(self,TC_ID, login_flow, driving_range_flow):
         D.load(TC_ID)
         ADD_ONS = load_add_ons(TC_ID)
         pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
-        login_flow.verify_home()
+        login_flow.verify_home(D.SPORT_TYPE, D.REGION)
         driving_range_flow.select_region(D.REGION)
         driving_range_flow.open_driving_range()
         driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
@@ -70,13 +70,13 @@ class TestDrivingRangeBookingRegularMalaysia:
         generate_pdf(pdf)
         
     @pytest.mark.app_state("force-stop")
-    @pytest.mark.skip
+    @pytest.mark.regression
     @pytest.mark.parametrize("TC_ID", ["DR_MY_RP_002"])
     def test_end_to_end_booking_driving_range_with_autoapplied_promo_regular_malaysia(self,TC_ID, login_flow, driving_range_flow):
         D.load(TC_ID)
         ADD_ONS = load_add_ons(TC_ID)
         pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
-        login_flow.verify_home()
+        login_flow.verify_home(D.SPORT_TYPE, D.REGION)
         driving_range_flow.select_region(D.REGION)
         driving_range_flow.open_driving_range()
         driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)
@@ -106,7 +106,7 @@ class TestDrivingRangeBookingRegularMalaysia:
         D.load(TC_ID)
         ADD_ONS = load_add_ons(TC_ID)
         pdf = init_pdf(D.TC_NAME, tc_id=TC_ID)
-        login_flow.verify_home()
+        login_flow.verify_home(D.SPORT_TYPE, D.REGION)
         driving_range_flow.select_region(D.REGION)
         driving_range_flow.open_driving_range()
         driving_range_flow.search_and_open_range(D.DRIVING_RANGE_NAME)

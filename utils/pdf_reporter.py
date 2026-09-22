@@ -11,34 +11,42 @@ Steps can carry structured data:
                    rendered as a side-by-side (left vs right) table, mismatches
                    highlighted in red.
 
-Layout:
-  * Page 1  -> cover: full-bleed Swing purple with the white logo, the report
-               title, TC ID / TC Name and the run's meta (platform, date,
-               status pill, step count). Drawn straight on the canvas.
-  * Page 2+ -> Table of contents: one dotted-leader line per step
-               ("Label ....... 3"), the whole line clickable, jumping straight
-               to that step's page — real page numbers, computed with a first
+Layout — the same report the iOS suite produces
+(SWING_APPS_IOS/helpers/pdf_report.py), drawn here with reportlab:
+  * Page 1  -> cover: full-bleed Swing purple, the white wordmark, the company
+               and department, "AUTOMATION REPORT", the scenario, the failure
+               reason when the run failed, and the reporting-by / tools block.
+  * Page 2+ -> "Table of Content": one numbered, clickable line per step with
+               the page it lands on — real page numbers, computed with a first
                "measurement" pass over the same content (afterFlowable hook)
                before the final PDF is rendered.
-  * Every page carries a footer: "Swing — Confidential. For Swing use only."
-               plus "Page X of Y".
+  * then    -> the scenario summary: scenario, meta block (steps, application
+               id, status, platform, execution start / end / time, host) the
+               failure box when it failed, and the No / Test Step / Status
+               table.
+  * then    -> "TEST CASE EVIDENCE IMAGE": every step, its screenshot and its
+               "Desc : [PASSED]" line, plus any data / compare table.
+  * Every page after the cover carries the company header and the footer band
+               with "Page X".
 
 When PDF evidence is disabled no reporter is created, page objects receive
 ``None``, and nothing here runs — the automation runs exactly the same, just
 without a PDF.
 """
+import getpass
 import io
 import os
 from datetime import datetime
 from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
+from reportlab.lib.units import cm, mm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import (
     SimpleDocTemplate,
+    CondPageBreak,
     Paragraph,
     Spacer,
     Image,
@@ -53,29 +61,63 @@ from config import settings
 # Feature prefixes used in capture_step slugs -> readable labels.
 _FEATURE_PREFIXES = {"dr": "Driving Range", "tt": "Tee Time"}
 
-# Brand line shown on the cover and in every page's footer.
-_CONFIDENTIAL_NOTICE = "Swing — Confidential. For Swing use only."
+# --- report identity (same wording as the iOS report) --------------------- #
+COMPANY = "PT Silverwing Wisteria Indosport"
+DEPARTMENT = "Dept. QA Automation Swing"
+REPORT_LABEL = "Appium Report Testing"
+REPORTING_BY = "Automation Team Swing"
+TOOLS = "Appium - Python"
+FOOTER_TEXT = "AUTOMATION TESTING REPORT - PT SILVERWING WISTERIA INDOSPORT"
 
 # --- brand ---------------------------------------------------------------- #
-# Sampled from the app's own launcher icon (assets/swing_rounded_android.png):
-# rgb(92, 0, 230). The tints are that hue lightened for rules and muted labels.
-BRAND_PURPLE = colors.HexColor("#5C00E6")
-BRAND_PURPLE_DARK = colors.HexColor("#3D0099")
-BRAND_TINT = colors.HexColor("#C9A9FF")      # labels on the purple cover
-BRAND_WASH = colors.HexColor("#F3EBFF")      # table header fill on white pages
-FAIL_RED_HEX = "#E5484D"                     # failed steps, and the FAIL cover pill
-FAIL_RED = colors.HexColor(FAIL_RED_HEX)
+BRAND = colors.Color(92 / 255, 0, 229 / 255)
+BRAND_TINT = colors.Color(226 / 255, 214 / 255, 253 / 255)
+INK = colors.Color(33 / 255, 33 / 255, 33 / 255)
+GREY = colors.Color(110 / 255, 110 / 255, 110 / 255)
+LINE = colors.Color(196 / 255, 196 / 255, 196 / 255)
+BAND = colors.Color(238 / 255, 240 / 255, 245 / 255)
+PASS_COLOR = colors.Color(26 / 255, 143 / 255, 68 / 255)
+FAIL_COLOR = colors.Color(198 / 255, 40 / 255, 40 / 255)
+FAIL_WASH = colors.Color(253 / 255, 236 / 255, 236 / 255)
+FAIL_RED_HEX = "#C62828"
+PASS_GREEN_HEX = "#1A8F44"
+BRAND_HEX = "#5C00E5"
 
 _ASSETS_DIR = os.path.join(settings.BASE_DIR, "assets")
-# The launcher icon: white wordmark on exactly BRAND_PURPLE, so dropping it on
-# the purple cover reads as the logo floating on the page.
-LOGO_ON_PURPLE = os.path.join(_ASSETS_DIR, "swing_rounded_android.png")
-# Purple wordmark on transparency — for anything on a white background.
-LOGO_ON_WHITE = os.path.join(_ASSETS_DIR, "swing_logo_horizontal.png")
+# Purple wordmark on transparency — the header of every white page.
+LOGO = os.path.join(_ASSETS_DIR, "swing_report_logo.png")
+# White wordmark — the purple cover.
+LOGO_WHITE = os.path.join(_ASSETS_DIR, "swing_report_logo_white.png")
+_LOGO_RATIO = 64 / 214  # both wordmarks are 214 x 64
+
+# --- geometry (mirrors the iOS report's millimetre grid) ------------------ #
+MARGIN = 18 * mm
+HEADER_H = 34 * mm
+FOOTER_H = 20 * mm
+IMAGE_MAX_H = 190 * mm
+TABLE_IMAGE_H = 100 * mm
+IMAGE_MAX_W = 150 * mm
+CONTENT_W = A4[0] - 2 * MARGIN
+CONTENT_H = A4[1] - HEADER_H - FOOTER_H - 6 * mm
+
+
+def _y(top: float) -> float:
+    """Millimetre-from-the-top coordinates, the way the iOS report is laid out,
+    turned into reportlab's from-the-bottom y."""
+    return A4[1] - top
 
 
 def _step_failed(step: dict) -> bool:
     return (step.get("status") or "").upper() == "FAIL"
+
+
+def _step_status(step: dict) -> str:
+    return "FAILED" if _step_failed(step) else "PASSED"
+
+
+def _elapsed(seconds: float) -> str:
+    total = int(seconds or 0)
+    return f"{total // 3600:02d}:{total % 3600 // 60:02d}:{total % 60:02d}"
 
 
 def humanize_step(slug: str) -> str:
@@ -123,9 +165,9 @@ def _parse_kv(description: str) -> dict | None:
 class _TrackingDocTemplate(SimpleDocTemplate):
     """SimpleDocTemplate that records which page each bookmarked step flowable
     lands on. Used for a first, throwaway "measurement" pass so the real build
-    can render a Table of contents with accurate page numbers — the standard
+    can render a Table of content with accurate page numbers — the standard
     two-pass technique reportlab's own TableOfContents/multiBuild uses
-    internally, done by hand here so we control the dotted-leader layout."""
+    internally, done by hand here so we control the layout."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -155,6 +197,7 @@ class PDFReporter:
         # once the real data-sheet row is loaded for an accurate cover page.
         self.tc_id = tc_id or self._derive_tc_id(test_name)
         self.tc_name = tc_name or ""
+        self.error = ""
 
     @staticmethod
     def _derive_tc_id(test_name: str) -> str:
@@ -189,14 +232,26 @@ class PDFReporter:
             }
         )
 
+    # ------------------------------------------------------------------ #
+    # Identity
+    # ------------------------------------------------------------------ #
+    def scenario(self) -> str:
+        """'TT_001 Standard booking' — what the cover and summary call the run."""
+        name = self.tc_name or self.test_name
+        return f"{self.tc_id} {name}".strip() if self.tc_id else str(name)
 
     # ------------------------------------------------------------------ #
     # Rendering
     # ------------------------------------------------------------------ #
-    def generate(self, status: str = "", output_dir: str | None = None) -> str:
+    def generate(self, status: str = "", output_dir: str | None = None,
+                 error: str = "") -> str:
         """Render the collected steps into a PDF and return its file path."""
         output_dir = output_dir or settings.REPORTS_DIR
         os.makedirs(output_dir, exist_ok=True)
+
+        if error:
+            self.error = error
+        self.finished_at = datetime.now()
 
         stamp = self.started_at.strftime("%Y%m%d_%H%M%S")
         filename = f"{self.test_name}_{self.platform}_{stamp}.pdf"
@@ -204,15 +259,16 @@ class PDFReporter:
 
         doc_kwargs = dict(
             pagesize=A4,
-            topMargin=1.5 * cm, bottomMargin=1.5 * cm,
-            leftMargin=1.5 * cm, rightMargin=1.5 * cm,
+            topMargin=HEADER_H, bottomMargin=FOOTER_H + 6 * mm,
+            leftMargin=MARGIN, rightMargin=MARGIN,
+            title=self.scenario(),
         )
-        content_width = A4[0] - doc_kwargs["leftMargin"] - doc_kwargs["rightMargin"]
 
         styles = getSampleStyleSheet()
         self._styles = self._build_styles(styles)
         self._cell_style = self._styles["cell"]
         self._cell_bold = self._styles["cell_bold"]
+        self._status = (status or "").upper()
 
         # NOTE: flowables must be freshly built for EACH pass — reportlab
         # Image/Paragraph flowables are not safe to reuse across two separate
@@ -221,53 +277,71 @@ class PDFReporter:
         # spurious "too large" LayoutError, even in a fresh empty frame). The
         # content is deterministic from self.steps, so rebuilding it per pass
         # still yields identical page breaks between passes.
+        def story(page_map):
+            return (
+                self._cover_elements()
+                + self._toc_elements(page_map)
+                + [PageBreak()]
+                + self._summary_elements()
+                + [PageBreak()]
+                + self._evidence_elements()
+            )
 
         # --- pass 1: measure which page each step's bookmark lands on ---
         tracker = _TrackingDocTemplate(io.BytesIO(), **doc_kwargs)
-        placeholder_toc = self._toc_elements({}, content_width, placeholder=True)
-        tracker.build(self._cover_elements() + placeholder_toc + [PageBreak()] + self._step_elements())
+        tracker.build(story({}))
         bookmark_pages = tracker.bookmark_pages
-        total_pages = tracker.last_content_page
 
-        # --- pass 2: render the final PDF with a real dotted-leader TOC ---
-        real_toc = self._toc_elements(bookmark_pages, content_width, placeholder=False)
-        elements = self._cover_elements() + real_toc + [PageBreak()] + self._step_elements()
-
+        # --- pass 2: render the final PDF with real page numbers ---
         doc = SimpleDocTemplate(path, **doc_kwargs)
         doc.build(
-            elements,
-            onFirstPage=lambda canv, _doc: self._draw_cover(canv, status),
-            onLaterPages=self._footer_drawer(total_pages),
+            story(bookmark_pages),
+            onFirstPage=self._cover_drawer(),
+            onLaterPages=self._page_drawer(),
         )
         return path
 
     def _build_styles(self, styles) -> dict:
+        normal = styles["Normal"]
         return {
             "toc_title": ParagraphStyle(
-                "TocTitle", parent=styles["Heading2"], spaceBefore=6, spaceAfter=6,
-                textColor=BRAND_PURPLE,
+                "TocTitle", parent=normal, fontName="Helvetica", fontSize=20,
+                leading=24, textColor=BRAND, spaceAfter=2,
             ),
-            "toc": ParagraphStyle("Toc", parent=styles["Normal"], fontSize=10, leading=18),
+            "section": ParagraphStyle(
+                "Section", parent=normal, fontName="Helvetica", fontSize=13,
+                leading=17, textColor=GREY,
+            ),
+            "toc": ParagraphStyle("Toc", parent=normal, fontSize=11, leading=14),
+            "scenario": ParagraphStyle(
+                "Scenario", parent=normal, fontName="Helvetica", fontSize=15,
+                leading=20, textColor=INK,
+            ),
+            "meta": ParagraphStyle("Meta", parent=normal, fontSize=9.5, leading=13),
             "step_title": ParagraphStyle(
-                "StepTitle", parent=styles["Heading3"], spaceBefore=10, spaceAfter=2,
-                textColor=BRAND_PURPLE_DARK,
+                "StepTitle", parent=normal, fontName="Helvetica", fontSize=11,
+                leading=15, textColor=INK, spaceBefore=2,
             ),
-            "step_title_fail": ParagraphStyle(
-                "StepTitleFail", parent=styles["Heading3"], spaceBefore=10, spaceAfter=2,
-                textColor=FAIL_RED,
+            "desc": ParagraphStyle("Desc", parent=normal, fontSize=9.5, leading=13),
+            "fail_head": ParagraphStyle(
+                "FailHead", parent=normal, fontName="Helvetica-Bold", fontSize=10,
+                leading=13, textColor=FAIL_COLOR,
             ),
-            "error": ParagraphStyle(
-                "Error", parent=styles["Normal"], fontSize=9, textColor=FAIL_RED,
-                alignment=0, spaceBefore=2,
+            "fail_body": ParagraphStyle("FailBody", parent=normal, fontSize=9, leading=12),
+            "table_head": ParagraphStyle(
+                "TableHead", parent=normal, fontSize=10, leading=13, textColor=INK,
             ),
-            "caption": ParagraphStyle(
-                "Caption", parent=styles["Normal"], fontSize=9, textColor=colors.grey,
-                alignment=0, spaceBefore=2,
+            "table_head_center": ParagraphStyle(
+                "TableHeadCenter", parent=normal, fontSize=10, leading=13,
+                textColor=INK, alignment=1,
             ),
-            "cell": ParagraphStyle("Cell", parent=styles["Normal"], fontSize=9, leading=12),
+            "cell_center": ParagraphStyle(
+                "CellCenter", parent=normal, fontSize=9, leading=12, alignment=1,
+            ),
+            "cell": ParagraphStyle("Cell", parent=normal, fontSize=9, leading=12),
             "cell_bold": ParagraphStyle(
-                "CellBold", parent=ParagraphStyle("Cell", parent=styles["Normal"], fontSize=9, leading=12),
-                fontName="Helvetica-Bold",
+                "CellBold", parent=normal, fontName="Helvetica-Bold", fontSize=9,
+                leading=12,
             ),
         }
 
@@ -277,116 +351,65 @@ class PDFReporter:
         can run edge to edge; the story only has to claim the page."""
         return [Spacer(1, 1), PageBreak()]
 
-    def _draw_cover(self, canv, status: str):
+    def _cover_drawer(self):
+        def _draw(canv, _doc):
+            self._draw_cover(canv)
+        return _draw
+
+    def _draw_cover(self, canv):
         page_w, page_h = A4
         canv.saveState()
-
-        # full-bleed brand purple
-        canv.setFillColor(BRAND_PURPLE)
+        canv.setFillColor(BRAND)
         canv.rect(0, 0, page_w, page_h, stroke=0, fill=1)
 
-        # the launcher icon sits on the same purple, so what shows is the mark
-        top = page_h - 4.2 * cm
-        if os.path.exists(LOGO_ON_PURPLE):
-            size = 4.6 * cm
-            canv.drawImage(LOGO_ON_PURPLE, 2.2 * cm, top - size + 1.1 * cm,
-                           width=size, height=size, mask="auto")
-            top -= size - 0.6 * cm
-        else:  # asset missing — fall back to the wordmark as type
-            canv.setFillColor(colors.white)
-            canv.setFont("Helvetica-Bold", 34)
-            canv.drawString(2.2 * cm, top, "swing")
-            top -= 1.4 * cm
+        if os.path.exists(LOGO_WHITE):
+            width = 48 * mm
+            height = width * _LOGO_RATIO
+            canv.drawImage(LOGO_WHITE, page_w - MARGIN - width,
+                           _y(MARGIN + height), width=width, height=height,
+                           mask="auto")
 
-        # title
         canv.setFillColor(colors.white)
-        canv.setFont("Helvetica-Bold", 30)
-        canv.drawString(2.2 * cm, top, "Test Evidence Report")
+        canv.setFont("Helvetica", 15)
+        canv.drawString(MARGIN, _y(24 * mm), COMPANY)
+        canv.setFont("Helvetica", 10)
+        canv.drawString(MARGIN, _y(31 * mm), DEPARTMENT)
 
-        canv.setFillColor(BRAND_TINT)
+        canv.setFont("Helvetica-Bold", 38)
+        canv.drawString(MARGIN, _y(124 * mm), "AUTOMATION")
+        canv.drawString(MARGIN, _y(140 * mm), "REPORT")
+        canv.setFont("Helvetica", 12)
+        canv.drawString(MARGIN, _y(151 * mm), "Testing summary report")
+
+        top = 164 * mm
+        canv.setFont("Helvetica", 15)
+        for line in self._wrap_cover_text(f"Scenario : {self.scenario()}",
+                                          "Helvetica", 15, CONTENT_W):
+            canv.drawString(MARGIN, _y(top), line)
+            top += 7 * mm
+
+        if self._status == "FAIL" and self.failure_reason():
+            top += 2 * mm
+            canv.setFont("Helvetica", 10)
+            for line in self._wrap_cover_text(f"Failure : {self.failure_reason()}",
+                                              "Helvetica", 10, CONTENT_W)[:4]:
+                canv.drawString(MARGIN, _y(top), line)
+                top += 5 * mm
+
+        right = page_w - MARGIN
         canv.setFont("Helvetica", 11)
-        canv.drawString(2.2 * cm, top - 0.85 * cm, _CONFIDENTIAL_NOTICE.upper())
+        canv.drawRightString(right, _y(225 * mm), "Reporting By")
+        canv.setFont("Helvetica", 16)
+        canv.drawRightString(right, _y(233 * mm), REPORTING_BY)
 
-        # thin rule under the header
-        canv.setStrokeColor(BRAND_TINT)
-        canv.setLineWidth(0.7)
-        canv.line(2.2 * cm, top - 1.6 * cm, page_w - 2.2 * cm, top - 1.6 * cm)
-
-        # test case, big and unmissable
-        y = top - 3.0 * cm
-        if self.tc_id:
-            canv.setFillColor(colors.white)
-            canv.setFont("Helvetica-Bold", 20)
-            canv.drawString(2.2 * cm, y, self.tc_id)
-            y -= 1.0 * cm
-        if self.tc_name:
-            canv.setFillColor(colors.white)
-            canv.setFont("Helvetica", 14)
-            for line in self._wrap_cover_text(self.tc_name, "Helvetica", 14,
-                                              page_w - 4.4 * cm):
-                canv.drawString(2.2 * cm, y, line)
-                y -= 0.7 * cm
-
-        # result, right under the case it belongs to
-        self._draw_status_pill(canv, 2.2 * cm, y - 0.5 * cm, status)
-
-        # meta block, anchored to the foot of the page so the cover reads as
-        # header at the top / details at the bottom instead of drifting
-        inner = page_w - 4.4 * cm
-        y = 7.4 * cm
-        canv.setStrokeColor(BRAND_PURPLE_DARK)
-        canv.setLineWidth(0.7)
-        canv.line(2.2 * cm, y + 1.0 * cm, page_w - 2.2 * cm, y + 1.0 * cm)
-
-        # the pytest node id gets a full-width row of its own; the short fields
-        # share the row below it
-        self._draw_meta_field(canv, 2.2 * cm, y, "TEST", self.test_name, inner)
-        y -= 2.0 * cm
-        for index, (label, value) in enumerate((
-            ("PLATFORM", self.platform),
-            ("DATE", self.started_at.strftime("%Y-%m-%d %H:%M:%S")),
-            ("STEPS", str(len(self.steps))),
-        )):
-            column = inner / 3
-            self._draw_meta_field(canv, 2.2 * cm + index * column, y, label, value,
-                                  column - 0.6 * cm)
-
-        # footer band
-        canv.setFillColor(BRAND_PURPLE_DARK)
-        canv.rect(0, 0, page_w, 1.6 * cm, stroke=0, fill=1)
-        canv.setFillColor(BRAND_TINT)
-        canv.setFont("Helvetica", 8)
-        canv.drawString(2.2 * cm, 0.62 * cm, _CONFIDENTIAL_NOTICE)
-        canv.drawRightString(page_w - 2.2 * cm, 0.62 * cm, "Page 1")
+        canv.setFont("Helvetica", 11)
+        canv.drawString(MARGIN, _y(253 * mm), "Tools :")
+        canv.setFont("Helvetica", 16)
+        canv.drawString(MARGIN, _y(261 * mm), TOOLS)
+        canv.setFont("Helvetica", 10)
+        canv.drawRightString(right, _y(261 * mm),
+                             self.started_at.strftime("%A %d %B %Y"))
         canv.restoreState()
-
-    @classmethod
-    def _draw_meta_field(cls, canv, x: float, y: float, label: str, value, width: float):
-        """One 'LABEL / value' pair of the cover's meta block."""
-        canv.setFillColor(BRAND_TINT)
-        canv.setFont("Helvetica", 8)
-        canv.drawString(x, y, label)
-        canv.setFillColor(colors.white)
-        canv.setFont("Helvetica", 11)
-        for line_no, line in enumerate(
-            cls._wrap_cover_text(str(value), "Helvetica", 11, width)[:2]
-        ):
-            canv.drawString(x, y - 0.55 * cm - line_no * 0.5 * cm, line)
-
-    @staticmethod
-    def _draw_status_pill(canv, x: float, y: float, status: str):
-        """PASS / FAIL as a rounded pill — the one thing a reader looks for."""
-        label = (status or "N/A").upper()
-        fill = {"PASS": colors.HexColor("#0FA958"), "FAIL": FAIL_RED}.get(
-            label, colors.HexColor("#6B7280")
-        )
-        text_w = stringWidth(label, "Helvetica-Bold", 12)
-        width, height = text_w + 1.6 * cm, 0.95 * cm
-        canv.setFillColor(fill)
-        canv.roundRect(x, y - height, width, height, height / 2, stroke=0, fill=1)
-        canv.setFillColor(colors.white)
-        canv.setFont("Helvetica-Bold", 12)
-        canv.drawCentredString(x + width / 2, y - height + 0.31 * cm, label)
 
     @staticmethod
     def _wrap_cover_text(text: str, font: str, size: float, max_width: float) -> list:
@@ -417,114 +440,267 @@ class PDFReporter:
             lines.append(current)
         return lines or [""]
 
-    # ---- table of contents ----
-    # Reserve room for the frame's own internal padding (reportlab subtracts a
-    # further ~6pt each side beyond the doc margins) so a line filled right up
-    # to content_width doesn't clip/wrap.
-    _TOC_FRAME_PADDING = 14
-
-    def _toc_elements(self, page_map: dict, content_width: float, placeholder: bool) -> list:
-        s = self._styles
-        elements = [Paragraph("Table of contents", s["toc_title"])]
-        for i, step in enumerate(self.steps, start=1):
-            label = f'{i}. {escape(humanize_step(step["title"]))}'
-            if _step_failed(step):
-                label += " — FAILED"
-            when = step["time"].strftime("%H:%M:%S")
-            when_suffix = f"   ({when})"
-            when_w = stringWidth(when_suffix, "Helvetica", 8)
-            bookmark = f"step{i}"
-            page_str = "1" if placeholder else str(page_map.get(bookmark, 1))
-            # dots must leave room for the trailing timestamp suffix appended
-            # after them, or the whole line overflows and wraps onto a second
-            # line instead of sitting flush with the label.
-            available = content_width - when_w - self._TOC_FRAME_PADDING
-            line = self._dotted_toc_line(label, page_str, bookmark, s["toc"], available)
-            elements.append(Paragraph(
-                f'{line}<font color="grey" size="8">{when_suffix}</font>',
-                s["toc"],
-            ))
-        return elements
-
-    @staticmethod
-    def _dotted_toc_line(label: str, page_str: str, bookmark: str,
-                         style: ParagraphStyle, available_width: float) -> str:
-        """'<label> ....... <page>', dot count computed from real font metrics
-        so the leader fills the line regardless of label/page-number length,
-        the whole thing wrapped as one clickable link to that step."""
-        font_name, font_size = style.fontName, style.fontSize
-        label_w = stringWidth(label + " ", font_name, font_size)
-        page_w = stringWidth(" " + page_str, font_name, font_size)
-        dot_w = stringWidth(".", font_name, font_size) or 1
-        remaining = available_width - label_w - page_w
-        n_dots = max(3, int(remaining / dot_w))
-        dots = "." * n_dots
-        return f'<a href="#{bookmark}" color="#5C00E6">{label} {dots} {page_str}</a>'
-
-    # ---- steps ----
-    def _step_elements(self) -> list:
-        s = self._styles
-        elements = []
-        for i, step in enumerate(self.steps, start=1):
-            title = escape(humanize_step(step["title"]))
-            when = step["time"].strftime("%H:%M:%S")
-            failed = _step_failed(step)
-            tag = f'<font color="{FAIL_RED_HEX}"> [FAILED]</font>' if failed else ""
-            # <a name> makes this the TOC link's click target; the custom
-            # _toc_bookmark attribute is how the measurement pass finds it.
-            title_para = Paragraph(
-                f'<a name="step{i}"/>Step {i}: {title}{tag}  '
-                f'<font color="grey" size="9">({when})</font>',
-                s["step_title_fail"] if failed else s["step_title"],
-            )
-            title_para._toc_bookmark = f"step{i}"
-            elements.append(title_para)
-
-            shot = step["screenshot"]
-            if shot and os.path.exists(shot):
-                elements.append(Spacer(1, 0.2 * cm))
-                elements.append(self._fit_image(shot))
-
-            body = self._step_body(step, s["error"] if failed else s["caption"])
-            if body is not None:
-                elements.append(Spacer(1, 0.15 * cm))
-                elements.append(body)
-            elements.append(Spacer(1, 0.4 * cm))
-        return elements
-
-    def _footer_drawer(self, total_pages: int):
-        """Returns an onLaterPages callback: a purple hairline, the Swing
-        wordmark, the confidentiality line and "Page X of Y"."""
-        def _draw(canv, doc):
+    # ---- header / footer on every page after the cover ----
+    def _page_drawer(self):
+        def _draw(canv, _doc):
+            page_w, page_h = A4
             canv.saveState()
-            page_w, _ = A4
-            canv.setStrokeColor(BRAND_PURPLE)
-            canv.setLineWidth(0.7)
-            canv.line(1.5 * cm, 1.45 * cm, page_w - 1.5 * cm, 1.45 * cm)
-            if os.path.exists(LOGO_ON_WHITE):
-                width = 1.9 * cm
-                canv.drawImage(LOGO_ON_WHITE, 1.5 * cm, 0.85 * cm, width=width,
-                               height=width * 64 / 214, mask="auto")
+            if os.path.exists(LOGO):
+                height = 9 * mm
+                canv.drawImage(LOGO, MARGIN, _y(12 * mm + height),
+                               width=height / _LOGO_RATIO, height=height,
+                               mask="auto")
+            canv.setFillColor(INK)
+            canv.setFont("Helvetica", 13)
+            canv.drawString(MARGIN + 54 * mm, _y(15 * mm), COMPANY)
+            canv.setFillColor(GREY)
+            canv.setFont("Helvetica", 8.5)
+            canv.drawString(MARGIN + 54 * mm, _y(20.5 * mm), DEPARTMENT)
+            canv.drawString(MARGIN + 54 * mm, _y(25.5 * mm), REPORT_LABEL)
+            canv.setFillColor(INK)
+            canv.setFont("Helvetica", 9)
+            canv.drawRightString(page_w - MARGIN, _y(15 * mm),
+                                 self.started_at.strftime("%A %d %B %Y"))
+            canv.setStrokeColor(INK)
+            canv.setLineWidth(0.6)
+            canv.line(MARGIN, _y(HEADER_H - 5 * mm),
+                      page_w - MARGIN, _y(HEADER_H - 5 * mm))
+
+            band_y = FOOTER_H - 12 * mm
+            canv.setFillColor(BAND)
+            canv.rect(MARGIN, band_y, CONTENT_W - 16 * mm, 12 * mm, stroke=0, fill=1)
+            canv.rect(page_w - MARGIN - 14 * mm, band_y, 14 * mm, 12 * mm,
+                      stroke=0, fill=1)
+            canv.setFillColor(GREY)
             canv.setFont("Helvetica", 8)
-            canv.setFillColor(colors.grey)
-            canv.drawCentredString(page_w / 2, 1.0 * cm, _CONFIDENTIAL_NOTICE)
-            canv.setFillColor(BRAND_PURPLE)
-            canv.drawRightString(page_w - 1.5 * cm, 1.0 * cm,
-                                 f"Page {canv.getPageNumber()} of {total_pages}")
+            canv.drawCentredString(MARGIN + (CONTENT_W - 16 * mm) / 2,
+                                   band_y + 4 * mm, FOOTER_TEXT)
+            canv.drawCentredString(page_w - MARGIN - 7 * mm, band_y + 4 * mm,
+                                   str(canv.getPageNumber()))
             canv.restoreState()
         return _draw
 
-    def _step_body(self, step: dict, caption_style):
-        """Pick how a step's data renders: compare table > data table >
-        parsed key=value table > plain caption."""
+    # ---- table of content ----
+    def _toc_elements(self, page_map: dict) -> list:
+        s = self._styles
+        elements = [
+            Paragraph("Table of Content", s["toc_title"]),
+            self._brand_rule(),
+            Spacer(1, 4 * mm),
+        ]
+        rows = []
+        for index, step in enumerate(self.steps, start=1):
+            label = f'{index}. {escape(humanize_step(step["title"]))}'
+            if _step_failed(step):
+                label += f' <font color="{FAIL_RED_HEX}">- FAILED</font>'
+            bookmark = f"step{index}"
+            page = page_map.get(bookmark, 1)
+            link = f'<a href="#{bookmark}" color="{BRAND_HEX}">'
+            rows.append([
+                Paragraph(f"{link}{label}</a>", s["toc"]),
+                Paragraph(f'{link}{page}</a>', s["toc"]),
+            ])
+        if rows:
+            table = Table(rows, colWidths=[CONTENT_W - 14 * mm, 14 * mm],
+                          hAlign="LEFT", rowHeights=9 * mm)
+            table.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE),
+            ]))
+            elements.append(table)
+        return elements
+
+    def _brand_rule(self, width: float = 70 * mm):
+        """The short purple underline the iOS report puts beneath a heading."""
+        rule = Table([[""]], colWidths=[width], rowHeights=[0.1],
+                     hAlign="LEFT")
+        rule.setStyle(TableStyle([
+            ("LINEABOVE", (0, 0), (-1, 0), 0.6, BRAND),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        return rule
+
+    def _section_title(self, text: str) -> list:
+        return [
+            Paragraph(escape(text), self._styles["section"]),
+            self._brand_rule(),
+            Spacer(1, 5 * mm),
+        ]
+
+    # ---- scenario summary ----
+    def _summary_elements(self) -> list:
+        s = self._styles
+        status = "FAILED" if self._status == "FAIL" else "PASSED"
+        duration = (getattr(self, "finished_at", None) or datetime.now()) - self.started_at
+        started = self.started_at
+        finished = started + duration
+        count = len(self.steps)
+
+        elements = [
+            Paragraph(f"Scenario : {escape(self.scenario())}", s["scenario"]),
+            Spacer(1, 3 * mm),
+            self._meta_table([
+                ("Total Test Step", f"{count} / {count} Test Step",
+                 "Aplication ID", os.getenv("APP_PACKAGE", "app.getswing.dev")),
+                ("Scenario Status", status, "Platform Name", self._platform_label()),
+                ("Execution Start", started.strftime("%Y-%m-%d %H:%M:%S"),
+                 "Host Name", getpass.getuser()),
+                ("Execution End", finished.strftime("%Y-%m-%d %H:%M:%S"),
+                 "Execution Time", _elapsed(duration.total_seconds())),
+            ]),
+            Spacer(1, 4 * mm),
+        ]
+        if status == "FAILED":
+            elements += [self._failure_box(), Spacer(1, 3 * mm)]
+        elements.append(self._step_table())
+        return elements
+
+    def _platform_label(self) -> str:
+        device = os.getenv("DEVICE_NAME", "")
+        return f"{self.platform} - {device}" if device else str(self.platform)
+
+    def _meta_table(self, rows: list) -> Table:
+        s = self._styles["meta"]
+        half = CONTENT_W / 2
+        body = []
+        for left_label, left_value, right_label, right_value in rows:
+            body.append([
+                Paragraph(escape(left_label), s), Paragraph(":", s),
+                Paragraph(escape(str(left_value)), s),
+                Paragraph(escape(right_label), s), Paragraph(":", s),
+                Paragraph(escape(str(right_value)), s),
+            ])
+        table = Table(
+            body,
+            colWidths=[34 * mm, 4 * mm, half - 38 * mm,
+                       32 * mm, 4 * mm, half - 36 * mm],
+            hAlign="LEFT",
+        )
+        table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ]))
+        return table
+
+    def failure_reason(self) -> str:
+        """What went wrong: the error pytest reported, else the last failed
+        step's own description."""
+        if self.error:
+            return self.error.strip().splitlines()[0]
+        failed = next((s for s in reversed(self.steps) if _step_failed(s)), None)
+        if failed and failed.get("description"):
+            return failed["description"]
+        return "No failure message was captured for this run"
+
+    def _failure_box(self) -> Table:
+        s = self._styles
+        rows = [[Paragraph("FAILURE REASON", s["fail_head"])]]
+        failed = next(((i, st) for i, st in reversed(list(enumerate(self.steps, start=1)))
+                       if _step_failed(st)), None)
+        if failed:
+            index, step = failed
+            rows.append([Paragraph(
+                f'Failed at step {index}: {escape(humanize_step(step["title"]))}',
+                s["fail_body"])])
+        rows.append([Paragraph(escape(self.failure_reason()), s["fail_body"])])
+        table = Table(rows, colWidths=[CONTENT_W], hAlign="LEFT")
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), FAIL_WASH),
+            ("BOX", (0, 0), (-1, -1), 0.6, FAIL_COLOR),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        return table
+
+    def _step_table(self) -> Table:
+        s = self._styles
+        head, head_center = s["table_head"], s["table_head_center"]
+        rows = [[Paragraph("No", head_center), Paragraph("Test Step", head),
+                 Paragraph("Status", head_center)]]
+        for index, step in enumerate(self.steps, start=1):
+            status = _step_status(step)
+            color = FAIL_RED_HEX if status == "FAILED" else PASS_GREEN_HEX
+            rows.append([
+                Paragraph(str(index), s["cell_center"]),
+                Paragraph(escape(humanize_step(step["title"])), s["cell"]),
+                Paragraph(f'<font color="{color}">{status}</font>', s["cell_center"]),
+            ])
+        table = Table(rows, colWidths=[16 * mm, CONTENT_W - 46 * mm, 30 * mm],
+                      hAlign="LEFT", repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), BRAND_TINT),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE),
+        ]))
+        return table
+
+    # ---- evidence ----
+    def _evidence_elements(self) -> list:
+        s = self._styles
+        elements = self._section_title("TEST CASE EVIDENCE IMAGE")
+        for index, step in enumerate(self.steps, start=1):
+            label = humanize_step(step["title"])
+            body, caption = self._step_body(step)
+            shot = step["screenshot"]
+            image = (self._fit_image(
+                shot, max_height=TABLE_IMAGE_H if body is not None else IMAGE_MAX_H
+            ) if shot and os.path.exists(shot) else None)
+
+            # keep the heading with its screenshot instead of stranding it at
+            # the foot of the previous page
+            needed = 14 * mm + (image.drawHeight if image is not None else 0)
+            elements.append(CondPageBreak(min(needed, CONTENT_H)))
+
+            # <a name> makes this the TOC link's click target; the custom
+            # _toc_bookmark attribute is how the measurement pass finds it.
+            title_para = Paragraph(
+                f'<a name="step{index}"/>{index}. {escape(label)}', s["step_title"]
+            )
+            title_para._toc_bookmark = f"step{index}"
+            elements.append(title_para)
+
+            if image is not None:
+                elements.append(Spacer(1, 2 * mm))
+                elements.append(image)
+
+            status = _step_status(step)
+            color = FAIL_RED_HEX if status == "FAILED" else PASS_GREEN_HEX
+            elements.append(Spacer(1, 2 * mm))
+            elements.append(Paragraph(
+                f'Desc : <font color="{color}">[{status}]</font> '
+                f'{escape(caption or label)}',
+                s["desc"],
+            ))
+            if body is not None:
+                elements.append(Spacer(1, 1.5 * mm))
+                elements.append(body)
+            elements.append(Spacer(1, 6 * mm))
+        return elements
+
+    def _step_body(self, step: dict):
+        """How a step's detail renders: (table, caption). A compare or data
+        dict becomes a table under the caption; a 'k=v | k=v' description
+        becomes the table itself, so it isn't printed twice."""
+        description = step.get("description") or ""
         if step.get("compare"):
-            return self._compare_table(step["compare"])
-        data = step.get("data") or _parse_kv(step.get("description", ""))
-        if data:
-            return self._kv_table(data)
-        if step.get("description"):
-            return Paragraph(escape(step["description"]), caption_style)
-        return None
+            return self._compare_table(step["compare"]), description
+        if step.get("data"):
+            return self._kv_table(step["data"]), description
+        parsed = _parse_kv(description)
+        if parsed:
+            return self._kv_table(parsed), ""
+        return None, description
 
     def _p(self, text, bold=False):
         style = self._cell_bold if bold else self._cell_style
@@ -535,10 +711,10 @@ class PDFReporter:
         """A 'list-down' Field/Value table."""
         rows = [[self._p("Field", bold=True), self._p("Value", bold=True)]]
         rows += [[self._p(k, bold=True), self._p(v)] for k, v in data.items()]
-        table = Table(rows, colWidths=[5 * cm, 12.5 * cm], hAlign="LEFT")
+        table = Table(rows, colWidths=[5 * cm, CONTENT_W - 5 * cm], hAlign="LEFT")
         table.setStyle(TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DCCBFF")),
-            ("BACKGROUND", (0, 0), (-1, 0), BRAND_WASH),
+            ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+            ("BACKGROUND", (0, 0), (-1, 0), BRAND_TINT),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -555,35 +731,41 @@ class PDFReporter:
         mismatches = set(compare.get("mismatch_fields") or [])
         fields = list(before.keys()) + [k for k in after if k not in before]
 
-        rows = [[self._p("Field", bold=True), self._p(left_label, bold=True), self._p(right_label, bold=True)]]
+        rows = [[self._p("Field", bold=True), self._p(left_label, bold=True),
+                 self._p(right_label, bold=True)]]
         for f in fields:
-            rows.append([self._p(f, bold=True), self._p(before.get(f, "")), self._p(after.get(f, ""))])
+            rows.append([self._p(f, bold=True), self._p(before.get(f, "")),
+                         self._p(after.get(f, ""))])
 
-        table = Table(rows, colWidths=[4 * cm, 6.75 * cm, 6.75 * cm], hAlign="LEFT")
+        half = (CONTENT_W - 4 * cm) / 2
+        table = Table(rows, colWidths=[4 * cm, half, half], hAlign="LEFT")
         style = [
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DCCBFF")),
-            ("BACKGROUND", (0, 0), (-1, 0), BRAND_WASH),
+            ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+            ("BACKGROUND", (0, 0), (-1, 0), BRAND_TINT),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ]
         for idx, f in enumerate(fields, start=1):
-            row_color = colors.HexColor("#b00020") if f in mismatches else colors.HexColor("#1b5e20")
+            row_color = FAIL_COLOR if f in mismatches else PASS_COLOR
             style.append(("TEXTCOLOR", (1, idx), (2, idx), row_color))
             if f in mismatches:
-                style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#fdecea")))
+                style.append(("BACKGROUND", (0, idx), (-1, idx), FAIL_WASH))
         table.setStyle(TableStyle(style))
         return table
 
     @staticmethod
-    def _fit_image(path: str, max_width: float = 9 * cm, max_height: float = 14 * cm):
+    def _fit_image(path: str, max_width: float = IMAGE_MAX_W,
+                   max_height: float = IMAGE_MAX_H):
         """Scale a screenshot to fit the page while keeping aspect ratio."""
         from reportlab.lib.utils import ImageReader
 
         iw, ih = ImageReader(path).getSize()
         ratio = min(max_width / iw, max_height / ih)
-        return Image(path, width=iw * ratio, height=ih * ratio)
+        image = Image(path, width=iw * ratio, height=ih * ratio)
+        image.hAlign = "CENTER"
+        return image
 
 
 # --------------------------------------------------------------------------- #
@@ -655,12 +837,13 @@ def init_pdf(test_name: str, enabled: bool | None = None,
     return reporter
 
 
-def generate_pdf(reporter: "PDFReporter | None", status: str = "PASS") -> str | None:
+def generate_pdf(reporter: "PDFReporter | None", status: str = "PASS",
+                 error: str = "") -> str | None:
     if _active.get("reporter") is reporter:
         _active["generated"] = True
     if reporter is None:
         return None
-    path = reporter.generate(status=status)
+    path = reporter.generate(status=status, error=error)
     if _active.get("reporter") is reporter:
         _active["path"] = path
     print(f"\n[evidence] PDF written to: {path}")

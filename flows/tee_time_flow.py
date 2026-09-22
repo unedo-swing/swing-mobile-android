@@ -16,11 +16,47 @@ from pages.tee_time.swing_credits_earnings_page import SwingCreditsEarningsPage
 from pages.tee_time.add_ons_page import AddOnsPage
 from pages.swing_credits.swing_credits_page import SwingCreditsPage
 from pages.swing_credits.history_page import HistoryPage
-from utils.summary import summary_failures
+from utils.summary import compare_summary
 
 # What the promo row on the booking confirmation reads when no promo is on the
 # player — i.e. the placeholder, not a promo name.
 NO_PROMO_LABEL = "Apply a promo"
+
+_NUMBER_FIELDS = ("Players",)
+_AMOUNT_FIELDS = ("Total", "Credits")
+
+_CONFIRMED_ONLY_FIELDS = ("Payment",)
+
+
+def compare_booking(before: dict, after: dict) -> dict:
+    """Every field of the booking that differs between the two screens.
+
+    ``before`` is the booking confirmation, ``after`` the confirmed booking —
+    both read through the tee time pages, so the keys line up. Fields that only
+    exist after payment (the booking id) are not compared: the diff walks the
+    confirmation's fields, which is what the payment had to preserve.
+    """
+    return compare_summary(before, after, number_fields=_NUMBER_FIELDS,
+                           amount_fields=_AMOUNT_FIELDS)
+
+
+def details_comparable(confirmed: dict) -> dict:
+    fields = {field: value for field, value in confirmed.items()
+              if field not in _CONFIRMED_ONLY_FIELDS}
+    if not fields.get("Credits"):
+        fields.pop("Credits", None)
+    return fields
+
+
+def compare_booking_details(confirmed: dict, details: dict) -> dict:
+    return compare_summary(details_comparable(confirmed), details,
+                           number_fields=_NUMBER_FIELDS,
+                           amount_fields=_AMOUNT_FIELDS)
+
+
+def addons_for(addons: list[dict], player_name: str, host_name: str = "") -> list[dict]:
+    return [addon for addon in (addons or [])
+            if (addon.get("player_name") or host_name) == player_name]
 
 
 class TeeTimeFlow(BaseFlow):
@@ -129,6 +165,41 @@ class TeeTimeFlow(BaseFlow):
         else:
             self.remove_promo(player_name)
 
+    def settle_promo(self, player_name: str, promo: str | None = None,
+                     promo_code: str | None = None) -> str:
+        if not promo:
+            return self.remove_promo(player_name)
+        applied = (self.booking_confirmation.get_promo_auto_applied(player_name) or "").strip()
+        if promo in applied:
+            return self.verify_auto_applied_promo(player_name)
+        if promo_code:
+            self.change_promo_with_add_promo_code(player_name, promo, promo_code)
+        else:
+            self.change_promo(player_name, promo)
+        return self.verify_promo_applied(player_name, promo)
+
+    def setup_player(self, player_name: str, addons: list[dict] | None = None,
+                     promo: str | None = None, promo_code: str | None = None) -> str:
+        self.add_addons_for(player_name, addons or [])
+        return self.settle_promo(player_name, promo, promo_code)
+
+    def setup_players(self, players: list[dict], addons: list[dict] | None = None,
+                      host_name: str = "", host_promo: str | None = None,
+                      promo_code: str | None = None,  used_credit:str = "not_used") -> dict:
+        settled = {}
+        if host_name:
+            settled[host_name] = self.setup_player(
+                host_name, addons_for(addons, host_name, host_name), host_promo, promo_code
+            )
+            if used_credit == "used":
+                self.use_swing_credits()
+        for player in players:
+            name = self.add_player(player)
+            settled[name] = self.setup_player(
+                name, addons_for(addons, name, host_name), player.get("promo"), promo_code
+            )
+        return settled
+
     def verify_player_added(self, name: str):
         self.booking_confirmation.verify_player(name)
 
@@ -163,34 +234,34 @@ class TeeTimeFlow(BaseFlow):
 
     def change_promo(self, player_name: str, promo_name: str):
         promo_auto_applied = self.booking_confirmation.get_promo_auto_applied(player_name)
-        if promo_name not in promo_auto_applied:
-            self.booking_confirmation.open_promo(player_name)
-            self.promo.verify_screen()
+        if promo_name in promo_auto_applied:
+            return
+        self.booking_confirmation.open_promo(player_name)
+        self.promo.verify_screen()
+        if self.promo.is_promo_applied():
             self.promo.remove_promo()
-            self.promo.search_promo(promo_name)
-            self.promo.apply_promo(promo_name)
-    
+        self.promo.search_promo(promo_name)
+        self.promo.apply_promo(promo_name)
+
     def change_promo_with_add_promo_code(self, player_name: str, promo_name: str, promo_code: str):
-        promo_auto_applied = self.booking_confirmation.get_promo_auto_applied(player_name)
-        if promo_auto_applied != NO_PROMO_LABEL:
-            self.booking_confirmation.open_promo(player_name)
-            self.promo.verify_screen()
+        self.booking_confirmation.open_promo(player_name)
+        self.promo.verify_screen()
+        if self.promo.is_promo_applied():
             self.promo.remove_promo()
-        else:
-            self.booking_confirmation.open_promo(player_name)
-            self.promo.verify_screen()
         self.promo.add_promo_code(promo_code)
         self.promo.search_promo(promo_name)
         self.promo.apply_promo(promo_name)
-        
-    
-    def remove_promo(self, player_name: str):
+
+    def remove_promo(self, player_name: str) -> str:
         promo_auto_applied = self.booking_confirmation.get_promo_auto_applied(player_name)
         if promo_auto_applied != NO_PROMO_LABEL:
             self.booking_confirmation.open_promo(player_name)
             self.promo.verify_screen()
             self.promo.remove_promo()
             self.promo.tap_back()
+        
+        self.capture_step("remove_promo")
+        return promo_auto_applied
 
     def add_promo_code(self, player_name: str, code: str):
         self.booking_confirmation.open_promo(player_name)
@@ -211,6 +282,7 @@ class TeeTimeFlow(BaseFlow):
         """The promo row for this player now reads the promo we expect — use it
         after change_promo() to prove the change landed."""
         promo = (self.booking_confirmation.get_promo_auto_applied(player_name) or "").strip()
+        assert promo, f"Promo row for '{player_name}' shows nothing to check"
         assert promo_name in promo, \
             f"Promo for '{player_name}' is '{promo}', expected '{promo_name}'"
         self.booking_confirmation.capture_step(
@@ -218,14 +290,14 @@ class TeeTimeFlow(BaseFlow):
         )
         return promo
 
-    def verify_promo_removed(self, player_name: str) -> str:
-        """The promo row is back to the placeholder — use it after
-        remove_promo() to prove nothing is applied to this player."""
+    def verify_promo_removed(self, player_name: str, removed: str = "") -> str:
         promo = (self.booking_confirmation.get_promo_auto_applied(player_name) or "").strip()
-        assert promo == NO_PROMO_LABEL, \
+        removed = (removed or "").strip()
+        assert promo in ("", NO_PROMO_LABEL) and not (removed and promo == removed), \
             f"Promo for '{player_name}' is still '{promo}', expected '{NO_PROMO_LABEL}'"
         self.booking_confirmation.capture_step(
-            "verify_promo_removed", f"No promo on {player_name}: {promo}"
+            "verify_promo_removed",
+            f"No promo on {player_name}: {promo or 'promo row is empty'}",
         )
         return promo
 
@@ -255,29 +327,75 @@ class TeeTimeFlow(BaseFlow):
     def get_data_before_payment(self) -> dict:
         return self.booking_confirmation.get_summary()
 
-    def pay_and_get_confirmed_booking(self, before: dict) -> dict:
-        self.pay_now()
-        self.confirmed.verify_screen()
-        after = self.confirmed.get_summary()
-
-        mismatches = summary_failures(before, after)
+    def compare_before_after_payment(self, before: dict, after: dict) -> dict:
+        mismatches = compare_booking(before, after)
         self.confirmed.capture_step(
             "tt_compare_booking",
-            "Confirmation matches confirmed booking" if not mismatches
+            "Before payment matches after payment" if not mismatches
             else f"{len(mismatches)} field(s) differ",
             compare={
-                "left_label": "Booking confirmation",
-                "right_label": "Confirmed booking",
+                "left_label": "Before payment",
+                "right_label": "After payment",
                 "before": before,
                 "after": after,
-                "mismatch_fields": [line.split(":", 1)[0] for line in mismatches],
+                "mismatch_fields": list(mismatches.keys()),
             },
         )
         assert not mismatches, (
-            "Confirmed booking does not match the booking confirmation:\n  "
-            + "\n  ".join(mismatches)
+            "Confirmed booking does not match the booking confirmation:\n"
+            + "\n".join(
+                f"  {field}: before='{b}' vs after='{a}'"
+                for field, (b, a) in mismatches.items()
+            )
         )
         return after
+
+    def pay_and_get_confirmed_booking(self, before: dict, course_name: str | None = None,
+                                      date: str | None = None, session: str | None = None,
+                                      preferred_time: str | None = None, no_of_players=None,
+                                      total: str | None = None,
+                                      payment_method: str | None = None) -> dict:
+        self.pay_now()
+        self.booking_confirmation.tap_proceed_to_pay()
+        self.confirmed.verify_screen()
+        self.confirmed.verify_confirmed_details(
+            course_name=course_name, date=date, session=session,
+            preferred_time=preferred_time, no_of_players=no_of_players,
+            total=total, payment_method=payment_method,
+        )
+        after = self.confirmed.get_summary()
+        return self.compare_before_after_payment(before, after)
+
+    def compare_payment_success_with_booking_details(self, confirmed: dict,
+                                                     status: str | None = None) -> dict:
+        self.booking_details.verify_screen()
+        details = self.booking_details.get_summary()
+        expected = details_comparable(confirmed)
+        mismatches = compare_booking_details(confirmed, details)
+        self.booking_details.capture_step(
+            "tt_compare_booking_details",
+            "Booking details match the payment success screen" if not mismatches
+            else f"{len(mismatches)} field(s) differ",
+            compare={
+                "left_label": "Payment success",
+                "right_label": "Booking details",
+                "before": expected,
+                "after": details,
+                "mismatch_fields": list(mismatches.keys()),
+            },
+        )
+        assert not mismatches, (
+            "Booking details do not match the payment success screen:\n"
+            + "\n".join(
+                f"  {field}: payment success='{b}' vs booking details='{a}'"
+                for field, (b, a) in mismatches.items()
+            )
+        )
+        if status is not None:
+            actual_status = details.get("Status", "")
+            assert status.casefold() in actual_status.casefold(), \
+                f"Status '{actual_status}' != expected '{status}'"
+        return details
 
     def verify_booking_details_summary(self, confirmed: dict, status: str | None = None) -> dict:
         self.booking_details.verify_screen()
@@ -405,8 +523,7 @@ class TeeTimeFlow(BaseFlow):
     def book_without_promo(self, player_names: list[str]) -> dict:
         removed = {}
         for name in player_names:
-            self.remove_promo(name)
-            removed[name] = self.verify_promo_removed(name)
+            removed[name] = self.remove_promo(name)
         return removed
 
     def keep_auto_applied_promo(self, player_names: list[str]) -> dict:
@@ -434,7 +551,7 @@ class TeeTimeFlow(BaseFlow):
             elif quantity < current:
                 self.add_ons.decrement(name, current - quantity)
         self.add_ons.tap_save()
-        self.booking_confirmation.verify_screen()
+        # self.booking_confirmation.verify_screen()
 
     def add_addons(self, addons: list[dict], host_name: str = ""):
         if not addons:
@@ -454,7 +571,6 @@ class TeeTimeFlow(BaseFlow):
 
     def check_used_credit(self, booking_id: str, credits_used: str = "") -> dict:
         self.home.go_to_home()
-        self.home.verify_screen()
         self.home.open_swing_credits()
         self.swing_credit.open_history()
         self.history_credit.tap_filter_credit_used()

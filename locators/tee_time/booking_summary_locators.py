@@ -1,3 +1,7 @@
+_LOWER_DESC = ('translate(@content-desc, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", '
+               '"abcdefghijklmnopqrstuvwxyz")')
+
+
 class BookingSummaryLocators:
     # --- header ---
     button_back = '(//android.widget.ImageView[@clickable="true"])[1]'
@@ -12,9 +16,9 @@ class BookingSummaryLocators:
     label_booking_type = '//android.view.View[@content-desc="Standard booking" or @content-desc="Group booking"]'
 
     # --- players summary list ---
-    # e.g. player_card_by_name % "Andi Wijaya" -> "AW\nAndi Wijaya\nRp. 1,000,000\n..."
+    # e.g. player_card_by_name % "andi wijaya" -> "AW\nAndi Wijaya\nRp. 1,000,000\n..."
     # First match in doc order is the summary card (not the price-details row).
-    player_card_by_name = '(//android.widget.ImageView[contains(@content-desc,"%s")])[1]'
+    player_card_by_name = f'(//android.widget.ImageView[contains({_LOWER_DESC}, "%s")])[1]'
 
     # --- notes ---
     label_notes_title = '//android.view.View[@content-desc="Notes to golf course"]'
@@ -26,10 +30,10 @@ class BookingSummaryLocators:
 
     # --- price details ---
     label_price_details = '//android.view.View[@content-desc="Price details"]'
-    # per-player breakdown row: price_line_by_name % "Andi Wijaya"
+    # per-player breakdown row: price_line_by_name % "andi wijaya"
     # (last() picks the price-details row over the summary card, which also
     # contains the name but doesn't carry "Published rate").
-    price_line_by_name = ('(//android.widget.ImageView[contains(@content-desc,"%s") '
+    price_line_by_name = (f'(//android.widget.ImageView[contains({_LOWER_DESC}, "%s") '
                           'and contains(@content-desc,"Published rate")])[1]')
     label_processing_fee = '//android.view.View[starts-with(@content-desc,"Processing fee")]'
     label_total_payment = '//android.view.View[starts-with(@content-desc,"Total payment")]'

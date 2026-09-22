@@ -47,6 +47,40 @@ class HistoryPage(AndroidBasePage):
         self.click(L.chip_usage)
         self.capture_step("Click Filter Credits Usage History Swing Credit")
 
+    @staticmethod
+    def booking_code(booking_id: str) -> str:
+        return (booking_id or "").split("#")[-1].strip()
+
+    @staticmethod
+    def credit_amount(total_credits: str) -> str:
+        return re.sub(r"\s+", "", total_credits or "")
+
+    def get_entry(self, booking_id: str) -> str:
+        code = self.booking_code(booking_id)
+        if not code:
+            return ""
+        element = self.find_anywhere(L.entry_by_booking_id % f"#{code}")
+        return (element.get_attribute("content-desc") or "") if element is not None else ""
+
+    def verify_credit(self, booking_id: str, total_credits: str = ""):
+        code = self.booking_code(booking_id)
+        credit = self.credit_amount(total_credits)
+        assert code, f"No booking id to look up in the credit history, got {booking_id!r}"
+        assert credit, f"No credits total to check for booking #{code}, got {total_credits!r}"
+
+        element = self.find_anywhere(L.entry_by_booking_id_and_credit % (f"#{code}", credit))
+        entry = (element.get_attribute("content-desc") or "") if element is not None else ""
+        self.capture_step("history_credit",
+                          f"#{code} {credit}: {entry.replace(chr(10), ' ') or 'no entry found'}")
+
+        if element is None:
+            listed = self.get_entry(code)
+            assert listed, f"No credit history entry for booking #{code}"
+            assert False, \
+                f"Credit history entry for booking #{code} reads " \
+                f"{listed.replace(chr(10), ' ')!r}, expected {total_credits!r}"
+        return entry
+
     def open_entry(self, booking_id: str):
         self.click(L.entry_by_booking_id % booking_id)
         self.capture_step("history_open_entry", f"Opened history entry #{booking_id}")

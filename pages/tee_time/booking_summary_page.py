@@ -1,13 +1,6 @@
-import re
-
 from core.android_base_page import AndroidBasePage
 from locators.tee_time.booking_summary_locators import BookingSummaryLocators as L
-
-
-AMOUNT_RE = re.compile(r"\b(?:Rp|RM)\.?\s*\d[\d.,]*(?<![.,])")
-
-def _amounts(text: str) -> list[str]:
-    return AMOUNT_RE.findall(text or "")
+from utils.amounts import last_amount
 
 
 class BookingSummaryPage(AndroidBasePage):
@@ -42,13 +35,12 @@ class BookingSummaryPage(AndroidBasePage):
 
     # ---- players summary ----
     def verify_player_summary(self, name: str):
-        assert self.is_visible_after_scroll(L.player_card_by_name % name), \
+        assert self.is_visible_after_scroll(L.player_card_by_name % name.lower()), \
             f"Player '{name}' not shown on booking summary"
         self.capture_step("verify_player_summary", f"Player shown: {name}")
 
     def get_player_summary_amount(self, name: str) -> str:
-        amounts = _amounts(self._desc(L.player_card_by_name % name))
-        return amounts[-1] if amounts else ""
+        return last_amount(self._desc(L.player_card_by_name % name.lower()))
 
     # ---- notes ----
     def get_notes(self) -> str:
@@ -64,15 +56,13 @@ class BookingSummaryPage(AndroidBasePage):
 
     # ---- price details ----
     def get_price_breakdown(self, name: str) -> str:
-        return self._desc(L.price_line_by_name % name)
+        return self._desc(L.price_line_by_name % name.lower())
 
     def get_processing_fee(self) -> str:
-        amounts = _amounts(self._desc(L.label_processing_fee))
-        return amounts[-1] if amounts else "Rp. 0"
+        return last_amount(self._desc(L.label_processing_fee), "Rp. 0")
 
     def get_total_payment(self) -> str:
-        amounts = _amounts(self._desc(L.label_total_payment))
-        return amounts[-1] if amounts else ""
+        return last_amount(self._desc(L.label_total_payment))
 
     # ---- combined verify ----
     def verify_summary_details(self, course_name: str | None = None, date: str | None = None,

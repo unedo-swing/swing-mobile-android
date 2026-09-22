@@ -1,4 +1,4 @@
-from core.android_base_page import AndroidBasePage
+from core.android_base_page import AndroidBasePage, desc_of
 from locators.tee_time.booking_confirmed_locators import BookingConfirmedLocators as L
 from utils.amounts import last_amount
 from utils.summary import assert_summary
@@ -12,7 +12,7 @@ class BookingConfirmedPage(AndroidBasePage):
         self.capture_step("booking_confirmed")
 
     def _desc(self, locator) -> str:
-        return self.find(locator).get_attribute("content-desc") or ""
+        return desc_of(self.find(locator))
 
     # ---- readers ----
     def get_booking_id(self) -> str:
@@ -38,11 +38,16 @@ class BookingConfirmedPage(AndroidBasePage):
         return self._desc(L.value_payment_method)
 
     def get_credits_earned(self) -> str:
+        if not self.is_visible_after_scroll(L.value_credits_earned, timeout=3, log=False):
+            return ""
         return self._desc(L.value_credits_earned)
+
+    def go_to_top(self):
+        self.scroll_up_to_element(L.label_title)
 
     # ---- summary snapshot / verify ----
     def get_summary(self) -> dict:
-        return {
+        summary = {
             "Booking": self._read(self.get_booking_id),
             "Date": self._read(self.get_date),
             "Session": self._read(self.get_session),
@@ -50,7 +55,10 @@ class BookingConfirmedPage(AndroidBasePage):
             "Players": self._read(self.get_no_of_players),
             "Total": self._read(self.get_total),
             "Payment": self._read(self.get_payment_method),
+            "Credits": self._read(self.get_credits_earned),
         }
+        self.go_to_top()
+        return summary
 
     def _read(self, getter) -> str:
         try:

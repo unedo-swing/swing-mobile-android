@@ -1,4 +1,6 @@
-from core.android_base_page import AndroidBasePage
+import time
+
+from core.android_base_page import AndroidBasePage, desc_of
 from locators.tee_time.booking_confirmation_locators import BookingConfirmationLocators as L
 from utils.amounts import amounts as _amounts, last_amount
 from utils.summary import assert_summary
@@ -16,10 +18,7 @@ class BookingConfirmationPage(AndroidBasePage):
         self.capture_step("booking_confirmation")
 
     def _desc(self, locator) -> str:
-        # scroll_and_find (not find): this is a long scrollable screen (players,
-        # notes, terms, Price details) and Flutter builds lazily, so anything
-        # below the fold is simply absent from the tree until scrolled into view.
-        return self.scroll_and_find(locator).get_attribute("content-desc") or ""
+        return desc_of(self.scroll_and_find(locator))
 
     # ---- booking summary: date / session / preferred time ----
     def get_date(self) -> str:
@@ -62,7 +61,7 @@ class BookingConfirmationPage(AndroidBasePage):
         actual_total_players = self.get_total_players()
         actual_total_payment = self.get_total_payment()
         actual_processing_fee = self.get_processing_fee()
-        actual_payment_method = self.get_selected_payment()
+        actual_payment_method = self.get_payment_method()
         actual_credits = self.get_credits_earned()
 
         player_payments = {}
@@ -70,13 +69,25 @@ class BookingConfirmationPage(AndroidBasePage):
             for name in player_names:
                 player_payments[name] = self.get_player_payment(name)
 
+        summary = {
+            "Date": actual_date,
+            "Session": actual_session,
+            "Time": actual_time,
+            "Players": str(actual_total_players),
+            "Total": actual_total_payment,
+            "Payment": actual_payment_method,
+        }
+
         self.capture_step(
             "before_payment_summary",
-            f"Date={actual_date} | Session={actual_session} | Time={actual_time} | "
-            f"Players={actual_total_players} | Total={actual_total_payment} "
-            f"(fee {actual_processing_fee}) | Payment={actual_payment_method or 'not selected'} | "
-            f"Credits={actual_credits or 'none'}"
-            + (f" | PerPlayer={player_payments}" if player_payments else ""),
+            " | ".join(f"{k}={v}" for k, v in summary.items() if v),
+            data={
+                "Venue": venue_name or "",
+                **summary,
+                "Processing fee": actual_processing_fee,
+                "Credits earned": actual_credits,
+                **{f"Paid by {name}": amount for name, amount in player_payments.items()},
+            },
         )
 
         if date is not None:
@@ -92,18 +103,7 @@ class BookingConfirmationPage(AndroidBasePage):
             assert total_payment in actual_total_payment, \
                 f"Total payment '{actual_total_payment}' != expected '{total_payment}'"
 
-        return {
-            "venue_name": venue_name,
-            "date": actual_date,
-            "session": actual_session,
-            "preferred_time": actual_time,
-            "total_players": actual_total_players,
-            "total_payment": actual_total_payment,
-            "processing_fee": actual_processing_fee,
-            "payment_method": actual_payment_method,
-            "credits_earned": actual_credits,
-            "player_payments": player_payments,
-        }
+        return summary
 
     # ---- summary snapshot / verify ----
     def get_summary(self) -> dict:
@@ -170,8 +170,8 @@ class BookingConfirmationPage(AndroidBasePage):
         return ""
 
     def get_total_players(self) -> int:
-        self.scroll_and_find(L.label_price_details)
-        return len(self.find_all(L.all_player_cards))
+        self.scroll_and_find(L.label_total_payment)
+        return self.count_all(L.all_player_cards)
 
     # ================= action steps =================
     def open_credits_earnings(self):
@@ -226,9 +226,16 @@ class BookingConfirmationPage(AndroidBasePage):
         self.click(L.row_addons)
         self.capture_step("open_addons")
     
-    def get_promo_auto_applied(self, player_name: str) -> str:
-        promo_name = self._desc(L.button_add_promo % player_name).strip()
-        print(f"Promo Name: {promo_name!r} \n xpath {L.button_add_promo % player_name}")
+    def get_promo_auto_applied(self, player_name: str, timeout: int = 15) -> str:
+        locator = L.button_add_promo % player_name
+        deadline = time.time() + timeout
+        promo_name = ""
+        while True:
+            promo_name = self._desc(locator).strip()
+            if promo_name or time.time() >= deadline:
+                break
+            time.sleep(0.5)
+        print(f"Promo Name: {promo_name!r} \n xpath {locator}")
         return promo_name
 
     def open_promo(self, player_name: str):
@@ -270,3 +277,8 @@ class BookingConfirmationPage(AndroidBasePage):
         assert self.is_visible(L.label_min_player % label), \
             f"Min player label '{label}' not shown"
         self.capture_step("verify_min_player", label)
+
+    def tap_proceed_to_pay(self):
+        if self.is_visible(L.button_proceed_to_pay):
+            self.click(L.button_proceed_to_pay)
+            self.capture_step("Click Proceed To Pay")

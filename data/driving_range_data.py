@@ -11,13 +11,6 @@ _SHEET = os.getenv("DRIVING_RANGE_SHEET", "Driving_Range")
 _ADD_ONS_SHEET = os.getenv("DRIVING_RANGE_ADDONS_SHEET", "Addons_Driving_Range")
 
 def load_add_ons(tc_id: str) -> list[dict]:
-    """The add-ons for one test case, or [] when the sheet lists none.
-
-    find_rows (not get_rows_by_tc_id) on purpose: a booking without add-ons is
-    a real scenario, so a TC missing from the add-ons sheet must not blow the
-    test up. A typo'd TC id still fails loudly — the TC_ID fixture loads the
-    Driving_Range sheet first, and that lookup does raise.
-    """
     rows = find_rows(_DATA_PATH, "TC_ID", tc_id, sheet=_ADD_ONS_SHEET)
     add_ons = []
     for row in rows:

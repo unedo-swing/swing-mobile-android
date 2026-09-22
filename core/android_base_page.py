@@ -89,11 +89,6 @@ class AndroidBasePage(BasePage):
         self._swipe_in_element(locator, "right", percent)
 
     def swipe_left_to_element(self, locator, container, max_swipes: int = 5) -> bool:
-        """Swipe ``container`` left until ``locator`` shows up. True when found.
-
-        Stops early once the container stops changing, so a carousel already at
-        its end doesn't burn every swipe.
-        """
         if self.is_visible(locator, timeout=1, log=False):
             return True
         for _ in range(max_swipes):

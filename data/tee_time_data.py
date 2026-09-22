@@ -64,12 +64,14 @@ class TeeTimeData:
         cls.TC_ID = row.get("TC_ID")
         cls.TC_NAME = row.get("TC_NAME")
         cls.REGION = row.get("REGION")
+        cls.SPORT_TYPE = row.get("SPORT_TYPE")
         cls.COURSE_NAME = row.get("COURSE_NAME")
         cls.BOOKING_DATE = row.get("BOOKING_DATE")    
         cls.PREFERRED_TIME = row.get("PREFERRED_TIME")
         cls.HOST_NAME = row.get("HOST_NAME")
         cls.HOST_PROMO = row.get("HOST_PROMO") or ""
         cls.PROMO_NAME = row.get("PROMO_NAME") or cls.HOST_PROMO
+        cls.EXPECTED_PROMO = row.get("PROMO_NAME") or ""
         cls.PROMO_CODE = row.get("PROMO_CODE") or ""
         cls.PAYMENT_METHOD = row.get("PAYMENT_METHOD")
         cls.PAYMENT_CARD = cls.PAYMENT_METHOD

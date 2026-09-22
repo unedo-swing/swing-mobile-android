@@ -12,13 +12,18 @@ from utils.pdf_reporter import (
 )
 
 
+def _crash_message(rep) -> str:
+    """The one-line reason pytest reported for a failure."""
+    if rep.longrepr is None:
+        return ""
+    crash = getattr(rep.longrepr, "reprcrash", None)
+    message = (crash.message if crash is not None else str(rep.longrepr)) or ""
+    return message.strip().splitlines()[0] if message.strip() else ""
+
+
 def _record_failure(request, pdf, rep, evidence):
     last = pdf.steps[-1] if (pdf is not None and pdf.steps) else None
     shot = last["screenshot"] if last else None
-    message = ""
-    if rep.longrepr is not None:
-        crash = getattr(rep.longrepr, "reprcrash", None)
-        message = (crash.message if crash is not None else str(rep.longrepr)) or ""
     request.config._regression_failures.append({
         "test": request.node.nodeid,
         "phase": rep.when,  # "setup" or "call"
@@ -26,7 +31,7 @@ def _record_failure(request, pdf, rep, evidence):
         "last_description": last["description"] if last else "",
         "last_screenshot": os.path.basename(shot) if shot else None,
         "pdf": evidence,
-        "error": message.strip().splitlines()[0] if message.strip() else "",
+        "error": _crash_message(rep),
     })
 
 
@@ -55,7 +60,8 @@ def pdf_evidence(request):
     pdf = active_reporter()
     pdf_path = active_pdf_path()
     if failed_rep is not None and not evidence_written():
-        pdf_path = generate_pdf(pdf, status="FAIL")
+        # the reason goes on the report's cover and in its failure box
+        pdf_path = generate_pdf(pdf, status="FAIL", error=_crash_message(failed_rep))
     # screenshots are embedded in the PDF now -> clear the folder once it's built
     if pdf_path:
         _empty_screenshots_dir()

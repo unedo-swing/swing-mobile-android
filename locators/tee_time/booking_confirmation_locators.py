@@ -15,10 +15,6 @@ class BookingConfirmationLocators:
     # player card carries "<Name> (Host)\n<tier>\nRp. <amount>" (or without Host).
     # First match in doc order is the players-list card (not the price line).
     player_card_by_name = '//android.widget.ImageView[contains(@content-desc,"%s")]'
-    # every player card (host + invitees), used to count total players. Matches
-    # any "Rp." ImageView that appears BEFORE "Price details" in doc order, so
-    # the per-player Price-details rows (also "Rp.", but after that label)
-    # aren't double-counted.
     all_player_cards = '//android.view.View[@content-desc="Price details"]/following-sibling::android.view.View//android.widget.ImageView'
     button_add_promo = '//android.widget.ImageView[contains(@content-desc,"%s")]/following-sibling::android.view.View[1]'
     button_add_add_ons = '//android.widget.ImageView[contains(@content-desc,"%s")]/following-sibling::android.view.View[2]'
@@ -61,3 +57,8 @@ class BookingConfirmationLocators:
     LABEL_MIN_PLAYER = ""
     label_max_player = '//android.view.View[contains(@content-desc,"%s")]'
     label_min_player = '//android.view.View[contains(@content-desc,"%s")]'
+    
+    
+    button_proceed_to_pay = '//android.widget.Button[@resource-id="proceed-button"]'
+    label_verification_required = '//android.view.View[@content-desc="Verification required"]'
+    label_pending_approval = '//android.view.View[@content-desc="Pending approval"]'

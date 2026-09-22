@@ -204,8 +204,6 @@ class DrivingRangeBookingConfirmationPage(AndroidBasePage):
         self.capture_step("dr_addon_row", f"Add-on shown: {name}")
 
     def get_addon_qty(self, name: str) -> int:
-        # "10 balls\nRp. 10,000\n1", or with a BXGY bonus line in between:
-        # "100 balls\nRp. 75,000\n+ 100 balls\n2" — the count is the last numeric line.
         digits = [
             line.strip()
             for line in self._desc(L.addon_row_by_name % name).splitlines()
