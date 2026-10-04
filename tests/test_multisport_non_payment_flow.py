@@ -6,7 +6,6 @@ from utils.pdf_reporter import init_pdf, generate_pdf
 @pytest.mark.android
 class TestMultisportFlow:
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_001"])
     def test_multisport_select_sport(self, login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -17,7 +16,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_002"])
     def test_multisport_select_venue(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -30,7 +28,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_003"])
     def test_multisport_book_venue(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -44,7 +41,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_004"])
     def test_multisport_select_schedule(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -60,7 +56,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_005"])
     def test_multisport_add_player(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -77,7 +72,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_006"])
     def test_multisport_remove_player(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -95,7 +89,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_007"])
     def test_multisport_select_payment(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -113,7 +106,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_009"])
     def test_multisport_add_additional(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -131,7 +123,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_010"])
     def test_multisport_add_additional_multiple(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -150,7 +141,6 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_011"])
     def test_multisport_remove_additional(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
@@ -168,7 +158,7 @@ class TestMultisportFlow:
 
         generate_pdf(pdf)
 
-    @pytest.mark.skip
+
     @pytest.mark.parametrize("TC_ID", ["TC_MLTS_012"])
     def test_multisport_remove_additional_multiple(login_flow, multisport_flow, TC_ID):
         M.load(TC_ID)
