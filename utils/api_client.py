@@ -59,6 +59,32 @@ SWING_OTP_REQUEST_PATH = "/players/api/v1/auth/otp/request"
 OTP_KEYS = ("otp", "code", "otp_code", "otpCode", "verification_code",
             "verificationCode", "pin")
 
+# Xendit test mode: pay a pending QRIS / virtual account order without a real
+# customer. The external id is the booking_payments.id the backend created.
+XENDIT_BASE_URL = "https://api.xendit.co"
+XENDIT_QR_SIMULATE_PATH = "/qr_codes/{external_id}/payments/simulate"
+XENDIT_VA_SIMULATE_PATH = "/callback_virtual_accounts/external_id={external_id}/simulate_payment"
+
+
+def whole_amount(value) -> int:
+    """403500, 403500.0, "403500.00" or "Rp. 403,500" -> 403500."""
+    if isinstance(value, (int, float)):
+        return int(round(value))
+    text = re.sub(r"[^\d.,]", "", str(value))
+    text = re.sub(r"[.,]\d{1,2}$", "", text)
+    return int(re.sub(r"\D", "", text) or 0)
+
+
+def xendit_headers() -> dict:
+    """Basic auth with XENDIT_SECRET_KEY (the key is the user name, the password is empty)."""
+    import base64
+
+    key = os.getenv("XENDIT_SECRET_KEY", "").strip()
+    if not key:
+        raise ApiError("XENDIT_SECRET_KEY is not set in .env")
+    token = base64.b64encode(f"{key}:".encode()).decode()
+    return {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
+
 
 def swing_headers() -> dict:
     """The header set the mobile app sends. content-length is left out on
@@ -327,6 +353,27 @@ class ApiClient:
         return self.post(
             os.getenv("SWING_OTP_REQUEST_PATH", SWING_OTP_REQUEST_PATH),
             body=body, **kwargs,
+        )
+
+    # ---- Xendit endpoints ----
+    def simulate_qr_payment(self, external_id: str, amount=None, **kwargs) -> ApiResponse:
+        """Pay a QRIS code in Xendit test mode, as if a customer scanned it."""
+        base = os.getenv("XENDIT_API_URL", XENDIT_BASE_URL).rstrip("/")
+        path = os.getenv("XENDIT_QR_SIMULATE_PATH", XENDIT_QR_SIMULATE_PATH)
+        body = {"amount": whole_amount(amount)} if amount not in (None, "") else None
+        return self.post(
+            base + path.replace("{external_id}", quote(str(external_id).strip(), safe="")),
+            headers=xendit_headers(), body=body, retries=kwargs.pop("retries", 1), **kwargs,
+        )
+
+    def simulate_va_payment(self, external_id: str, amount, **kwargs) -> ApiResponse:
+        """Pay a fixed virtual account in Xendit test mode, as if the customer transferred."""
+        base = os.getenv("XENDIT_API_URL", XENDIT_BASE_URL).rstrip("/")
+        path = os.getenv("XENDIT_VA_SIMULATE_PATH", XENDIT_VA_SIMULATE_PATH)
+        return self.post(
+            base + path.replace("{external_id}", quote(str(external_id).strip(), safe="")),
+            headers=xendit_headers(), body={"amount": whole_amount(amount)},
+            retries=kwargs.pop("retries", 1), **kwargs,
         )
 
     # ---- internals ----

@@ -32,6 +32,41 @@ class BaseFlow:
     def capture_step(self, title: str, description: str = "", status: str = ""):
         return self._evidence_page.capture_step(title, description, status=status)
 
+    # --- Xendit test-mode payments: the pending order is read from the DB ---
+    SIMULATED_PAYMENT_TYPES = ("qris", "virtual account")
+
+    def simulate_qris_payment(self, payment_method="QRIS"):
+        return self.simulate_gateway_payment(payment_method, "QRIS")
+
+    def simulate_va_payment(self, payment_method):
+        return self.simulate_gateway_payment(payment_method, "Virtual account")
+
+    def simulate_gateway_payment(self, payment_method, payment_type):
+        kind = str(payment_type or "").strip().lower()
+        if kind not in self.SIMULATED_PAYMENT_TYPES:
+            return None
+        from utils.api_client import ApiClient
+        from utils.db_queries import pending_booking_payment
+
+        payment = pending_booking_payment(payment_method)
+        client = ApiClient.swing()
+        if kind == "qris":
+            response = client.simulate_qr_payment(payment["id"])
+        else:
+            response = client.simulate_va_payment(payment["id"], payment["value"])
+        print(f"[xendit] simulated {payment['payment_method']} payment order {payment['id']} "
+              f"amount {payment['value']}: HTTP {response.status} {response.text[:300]}")
+        self.step(f"Simulate {payment['payment_method']} payment, order {payment['id']}",
+                  f"HTTP {response.status} {response.text[:300]}",
+                  status="" if response.ok else "FAIL")
+        response.raise_for_status()
+        return payment["id"]
+
+    def step(self, title, description="", status=""):
+        if self.reporter:
+            self.reporter.add_step(title, description, status=status)
+        return self
+
     def use_reporter(self, reporter):
         from core.base_page import BasePage
 

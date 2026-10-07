@@ -16,3 +16,7 @@ reportlab>=4.1.0          # PDF evidence — utils/pdf_reporter.py
 # .github/scripts/fetch_firebase_apk.py (Firebase App Distribution, CI only)
 requests>=2.31.0
 google-auth>=2.28.0
+
+# Database — utils/db_client.py (read the pending QRIS / VA order to simulate)
+psycopg==3.3.6
+psycopg-binary==3.3.6
