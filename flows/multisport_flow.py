@@ -104,3 +104,14 @@ class MultisportFlow(BaseFlow):
 
     def finish(self):
         self.order.tap_finish()
+
+    def verify_success_screen(self, type: str):
+        pay_method = ""
+        if type == "Shopee Pay":
+            pay_method = "SHOPEEPAY"
+        elif type == "Link Aja":
+            pay_method = "LINKAJA"
+        elif type == "DANA":
+            pay_method = "DANA"
+        self.order.verify_success_screen(pay_method)
+

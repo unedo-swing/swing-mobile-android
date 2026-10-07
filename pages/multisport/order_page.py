@@ -11,6 +11,13 @@ class OrderPage(AndroidBasePage):
         )
         self.capture_step("order_success", "Registration confirmed (You're confirmed!)")
 
+
+    def verify_success_screen(self, type: str):
+        assert self.is_visible(L.header_success_payment % type, timeout=20), \
+            f"Header '{type}' not found not shown"
+        
+        self.capture_step("order_success", f"'{type}' success")
+
     # ================= action steps =================
     def tap_finish(self):
         self.click(L.button_finish)
